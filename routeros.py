@@ -477,7 +477,7 @@ class RouterOS:
         assert mode == "router" or mode == "switch"
         self.write(f":global mode {mode}")
         self.read()
-        self.write("/system/scripts/run/setMode")
+        self.write("/system/scripts/run setMode")
         self.read()
 
     def __del__(self):
