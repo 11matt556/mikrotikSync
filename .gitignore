@@ -1,0 +1,6 @@
+secrets.py
+.idea/
+dhcpd.*
+host_entries.conf
+__pycache__/
+*.py[cod]
