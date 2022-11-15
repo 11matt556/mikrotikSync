@@ -1,6 +1,9 @@
+from typing import Dict
+
 import base_classes
 from datetime import datetime
 from datetime import timedelta
+
 
 class PfsenseDNS(base_classes.DNSServer):
     def __init__(self, host_entries_path):
@@ -11,7 +14,7 @@ class PfsenseDNS(base_classes.DNSServer):
         print("====PFSENSE====")
         super().print_dns_records()
 
-    def import_dns_records(self) -> dict[str, base_classes.DNSServer.DNSRecord]:
+    def import_dns_records(self) -> Dict[str, base_classes.DNSServer.DNSRecord]:
         """
         Import DNS records from Pfsense. Currently only implements host_entries.conf parsing (static DNS)
         """
@@ -55,7 +58,7 @@ class PfsenseDHCP(base_classes.DHCPServer):
             lines = iter(file.split("\n"))
             for line in lines:
                 if line.startswith("option domain-name") and leases == {} and domain_name == '':
-                    domain_name = "." + line.split(" ")[-1].replace(";","").replace("\"", "")
+                    domain_name = "." + line.split(" ")[-1].replace(";", "").replace("\"", "")
 
                 if line.startswith("host s_lan_"):
                     mac = ""
@@ -107,7 +110,7 @@ class PfsenseDHCP(base_classes.DHCPServer):
                             mac_address = line.replace(";", "").split(" ")[-1]
 
                         if "client-hostname" in line:
-                            hostname = line.replace(";", "").split(" ")[-1].replace("\"","") + domain_name
+                            hostname = line.replace(";", "").split(" ")[-1].replace("\"", "") + domain_name
 
                     leases[mac_address] = self.DHCPLease(mac_address, hostname, False, ip_address, lease_start,
                                                          lease_end, lease_end - lease_start)

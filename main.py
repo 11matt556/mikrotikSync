@@ -3,11 +3,6 @@ import routeros as ros
 import argparse
 
 
-def clear_records(routeros: ros.RouterOS):
-    routeros.dhcp_server.remove_all_pfsense_records()
-    routeros.dns_server.remove_all_pfsense_records()
-
-
 def main():
     parser = argparse.ArgumentParser(description="Some description")
     parser.add_argument('--connection_string',

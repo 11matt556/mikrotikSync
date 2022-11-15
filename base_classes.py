@@ -2,6 +2,8 @@ from abc import abstractmethod
 from datetime import datetime
 from datetime import timedelta
 
+from typing import Dict
+
 
 class DNSServer:
     class DNSRecord:
@@ -40,7 +42,7 @@ class DNSServer:
                 return False
             return True
 
-    _dns_records: dict[str, DNSRecord]
+    _dns_records: Dict[str, DNSRecord]
 
     def print_dns_records(self):
         """
@@ -58,7 +60,7 @@ class DNSServer:
         return self._dns_records[hostname]
 
     @abstractmethod
-    def import_dns_records(self) -> dict[str, DNSRecord]:
+    def import_dns_records(self) -> Dict[str, DNSRecord]:
         """
         Import DNS records from file or command line.
         """
@@ -121,7 +123,7 @@ class DHCPServer:
             if self.lease_duration != other.lease_duration:
                 return False
             return True
-    _leases: dict[str, DHCPLease]
+    _leases: Dict[str, DHCPLease]
 
     def print_dhcp_leases(self):
         """

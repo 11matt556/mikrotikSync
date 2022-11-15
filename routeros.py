@@ -1,5 +1,7 @@
 import time
 
+from typing import Dict
+
 import base_classes
 import secrets
 import serial
@@ -47,7 +49,7 @@ class MikrotikDNS(base_classes.DNSServer):
         # ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$
         self._ros_handle.write("/ip/dns/static/export")
         res = self._ros_handle.read()
-        static_dns_records: dict[str, MikrotikDNS.DNSRecord] = {}
+        static_dns_records: Dict[str, MikrotikDNS.DNSRecord] = {}
 
         items = re.split(' |\r\n', res)
 
@@ -189,7 +191,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         print("Importing RouterOS DHCP Leases")
         self._ros_handle.write("/ip/dhcp-server/lease export")
         res = self._ros_handle.read()
-        dhcp_leases: dict[str, MikrotikDHCP.DHCPLease] = {}
+        dhcp_leases: Dict[str, MikrotikDHCP.DHCPLease] = {}
 
         iter_items = iter(re.split(' |\r\n', res))
         debug_items = re.split(' |\r\n', res)
@@ -213,9 +215,6 @@ class MikrotikDHCP(base_classes.DHCPServer):
             if lease_time is None:
                 # If no lease time was found assume it is static
                 static = True
-
-            # TODO: Figure out how to determine if actually static
-            # Maybe start parsing comment and use that.
 
             # Wasn't able to determine static in initial parse, but if lease doesn't expire it must be static
             if static is None and (lease_time is None or lease_time == timedelta(minutes=0)):
@@ -331,7 +330,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         self._ros_handle.write(command)
         return self._ros_handle.read()
 
-    def add_dhcp_leases(self, leases: dict[str, base_classes.DHCPServer.DHCPLease]):
+    def add_dhcp_leases(self, leases: Dict[str, base_classes.DHCPServer.DHCPLease]):
         """
         Add all DHCP leases contained in the leases dictionary to the routeros device.
         Re-imports DHCP leases after all leases have been added.
@@ -450,7 +449,7 @@ class RouterOS:
             print("No login field.")
 
         if "Password:" in read_res:
-            self.write(secrets.routeros_password)  # TODO: Make this less blatantly insecure
+            self.write(secrets.routeros_password)
         else:
             print("No password field")
 
