@@ -1,5 +1,3 @@
-import time
-
 from typing import Dict
 
 import base_classes
