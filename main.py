@@ -7,48 +7,42 @@ def main():
     parser = argparse.ArgumentParser(description="Some description")
     parser.add_argument('--connection_string',
                         action='store',
-                        help="Path to tty serial port............................ "
-                             "[default: %(default)s]",
+                        help="Path to tty serial port. [default: %(default)s]",
                         default="/dev/ttyS1",
                         type=str
                         )
     parser.add_argument('--serial_baud_rate',
                         action='store',
-                        help="Baud Rate in bps................................... "
-                             "Common baud rates: 9600, 19200, 115200, and 460800. "
-                             "[default: %(default)s]",
+                        help="Baud Rate in bps. Common baud rates include 9600, 19200, 115200, and 460800. [default: "
+                             "%(default)s]",
                         default=460800,
                         type=int
                         )
 
     parser.add_argument('--static_lease_path',
                         action='store',
-                        help="Path to dhcpd.conf................................. "
-                             "[default: %(default)s]",
+                        help="Path to dhcpd.conf. [default: %(default)s]",
                         type=str,
                         default="/var/dhcpd/etc/dhcpd.conf"
                         )
 
     parser.add_argument('--dynamic_lease_path',
                         action='store',
-                        help="Path to dhcpd.leases............................... "
-                             "[default: %(default)s]",
+                        help="Path to dhcpd.leases. [default: %(default)s]",
                         type=str,
                         default="/var/dhcpd/var/db/dhcpd.leases"
                         )
 
     parser.add_argument('--host_entries_path',
                         action='store',
-                        help="Path to host_entries.conf.......................... "
-                             "[default: %(default)s]",
+                        help="Path to host_entries.conf. [default: %(default)s]",
                         type=str,
                         default="/var/unbound/host_entries.conf"
                         )
 
     parser.add_argument('--setMode',
                         action='store',
-                        help="Set the mode of the RouterOS device................ "
-                             "[default: %(default)s]",
+                        help="Set the mode of the RouterOS device. [default: %(default)s]",
                         type=str,
                         default='switch',
                         choices=['router', 'switch']
@@ -56,8 +50,8 @@ def main():
 
     parser.add_argument('--remove_managed_records',
                         action='store',
-                        help="Remove any records added by this script............ "
-                             "Will not run part of the script that adds records.. "
+                        help="Remove any records added by this script. "
+                             "Will not run part of the script that adds records. "
                              "[default: %(default)s]",
                         type=bool,
                         default=False
@@ -65,8 +59,8 @@ def main():
 
     parser.add_argument('--print_pf_records',
                         action='store',
-                        help="Print DNS and DHCP records of Pfsense............. "
-                             "Prints before and after records are changed....... "
+                        help="Print DNS and DHCP records of Pfsense. "
+                             "Prints before and after records are changed. "
                              "[default: %(default)s]",
                         type=bool,
                         default=False
@@ -74,17 +68,16 @@ def main():
 
     parser.add_argument('--print_ros_records',
                         action='store',
-                        help="Print DNS and DHCP records of RouterOS............ "
-                             "Prints before and after records are changed....... "
-                             "Ignored when --skip_ros_import is True............ "
-                             "[default: %(default)s]",
+                        help="Print DNS and DHCP records of RouterOS. "
+                             "Prints before and after records are changed. "
+                             "Ignored when --skip_ros_import is True. [default: %(default)s]",
                         type=bool,
                         default=False
                         )
 
     parser.add_argument('--skip_ros_import',
                         action='store',
-                        help="Skip import from RouterOS......................... "
+                        help="Skip import from RouterOS. "
                              "[default: %(default)s]",
                         type=bool,
                         default=False
