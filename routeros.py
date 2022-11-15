@@ -374,7 +374,7 @@ class RouterOS:
             self.serial_port.stopbits = 1
             self.serial_port.bytesize = 8
             self.serial_port.timeout = 60
-            self.serial_port.inter_byte_timeout = 1
+            self.serial_port.inter_byte_timeout = 1  # TODO: inter_byte_timeout is broken in FreeBSD...
 
             assert self.serial_port.is_open
         else:
@@ -412,12 +412,12 @@ class RouterOS:
         :returns: Decoded terminal output with ansi escape characters removed.
         :rtype: str
         """
-
+        print(f"=== READ ===")
         # Some sort of regex magic to remove escape characters
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
         serial_ret = self.serial_port.read(100000)
 
-        print(f"=== READ ===")
+
         serial_ret = serial_ret.decode()
         serial_ret = ansi_escape.sub('', serial_ret)
         lines = serial_ret.split("\r")

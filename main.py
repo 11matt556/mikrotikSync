@@ -63,7 +63,7 @@ def main():
                              "Prints before and after records are changed. "
                              "[default: %(default)s]",
                         type=bool,
-                        default=False
+                        default=True
                         )
 
     parser.add_argument('--print_ros_records',
@@ -72,7 +72,7 @@ def main():
                              "Prints before and after records are changed. "
                              "Ignored when --skip_ros_import is True. [default: %(default)s]",
                         type=bool,
-                        default=False
+                        default=True
                         )
 
     parser.add_argument('--skip_ros_import',
