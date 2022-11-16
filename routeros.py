@@ -1,3 +1,5 @@
+import sys
+import time
 from typing import Dict
 
 import base_classes
@@ -11,14 +13,14 @@ _BASE_COMMENT = "Added by pfsense. mode:router."
 
 class MikrotikDNS(base_classes.DNSServer):
 
-    def __init__(self, handle, do_import):
+    def __init__(self, handle, skip_import):
         """
         :param handle:
         Handle to a RouterOS object. Used to read and write to the RouterOS console.
         :type handle: RouterOS
         """
         self._ros_handle = handle
-        if do_import:
+        if not skip_import:
             self._dns_records = self.import_dns_records()
 
     def print_dns_records(self):
@@ -45,8 +47,12 @@ class MikrotikDNS(base_classes.DNSServer):
         print("Importing RouterOS DNS Records")
         # Magic regex to find ipv4
         # ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$
-        self._ros_handle.write("/ip/dns/static/export")
-        res = self._ros_handle.read()
+        res = "NULL"
+        attempt = 0
+        while res == "NULL":
+            self._ros_handle.write("/ip/dns/static/export")
+            res = self._ros_handle.read(extra_delay=attempt)
+            attempt += 1
         static_dns_records: Dict[str, MikrotikDNS.DNSRecord] = {}
 
         items = re.split(' |\r\n', res)
@@ -161,7 +167,7 @@ class MikrotikDNS(base_classes.DNSServer):
 
 
 class MikrotikDHCP(base_classes.DHCPServer):
-    def __init__(self, handle, do_import):
+    def __init__(self, handle, skip_import):
         """
         Handles implementation details of managing DHCP leases of RouterOS
         :param handle:
@@ -171,7 +177,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         :rtype: MikrotikDHCP
         """
         self._ros_handle = handle
-        if do_import:
+        if not skip_import:
             self._leases = self.import_dhcp_leases()
 
         # _leases are keyed on MAC address
@@ -187,8 +193,12 @@ class MikrotikDHCP(base_classes.DHCPServer):
         :rtype: dict[str, MikrotikDHCP.DHCPLease]
         """
         print("Importing RouterOS DHCP Leases")
-        self._ros_handle.write("/ip/dhcp-server/lease export")
-        res = self._ros_handle.read()
+        res = "NULL"
+        attempt = 0
+        while res == "NULL":
+            self._ros_handle.write("/ip/dhcp-server/lease export")
+            res = self._ros_handle.read(extra_delay=attempt)
+            attempt += 1
         dhcp_leases: Dict[str, MikrotikDHCP.DHCPLease] = {}
 
         iter_items = iter(re.split(' |\r\n', res))
@@ -249,8 +259,8 @@ class MikrotikDHCP(base_classes.DHCPServer):
             if item.startswith("lease-time="):
                 lease_time = item[11:]
 
-                if lease_time[:-1].isnumeric():
-                    if int(lease_time[:-1]) == 0:
+                if lease_time[0].isnumeric():
+                    if int(lease_time[0]) == 0:
                         static = True
 
                 else:
@@ -266,8 +276,9 @@ class MikrotikDHCP(base_classes.DHCPServer):
                 elif lease_time[-1] == "d":
                     lease_time = timedelta(days=int(lease_time[:-1]))
                 else:
-                    print("Couldn't parse lease duration")
-                    raise Exception
+                    print("WARNING: Couldn't parse lease duration. Assuming it is in hours.")
+                    lease_time = timedelta(hours=int(lease_time[:-1]))
+                    #raise Exception
 
             if item.startswith("mac-address="):
                 assert mac_address is None
@@ -362,7 +373,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
 
 
 class RouterOS:
-    def __init__(self, connection_string: str, baud_rate: int, do_import: bool = True):
+    def __init__(self, connection_string: str, baud_rate: int, skip_import: bool = True):
         """
         Note: Only serial connection is implemented at this time
         :param connection_string: Serial Port or IP address associated with RouterOS device
@@ -370,12 +381,10 @@ class RouterOS:
         if "COM" in connection_string or "tty" in connection_string:
             self.serial_port = serial.Serial(connection_string)
             self.serial_port.baudrate = baud_rate
-            self.serial_port.parity = "N"
+            self.serial_port.parity = "E"
             self.serial_port.stopbits = 1
             self.serial_port.bytesize = 8
-            self.serial_port.timeout = 60
-            self.serial_port.inter_byte_timeout = 1  # TODO: inter_byte_timeout is broken in FreeBSD...
-
+            self.serial_port.timeout = 30
             assert self.serial_port.is_open
         else:
             print(f"{connection_string} is Invalid or Not Implemented! ")
@@ -385,8 +394,8 @@ class RouterOS:
         self.logged_in = self.login()
         exit(-1) if self.logged_in is False else 'Do Nothing'
 
-        self.dns_server = MikrotikDNS(handle=self, do_import=do_import)
-        self.dhcp_server = MikrotikDHCP(handle=self, do_import=do_import)
+        self.dns_server = MikrotikDNS(handle=self, skip_import=skip_import)
+        self.dhcp_server = MikrotikDHCP(handle=self, skip_import=skip_import)
 
     def write(self, command: str, print_command: bool = True) -> int:
         """
@@ -406,7 +415,7 @@ class RouterOS:
             print("=== END WRITE ===")
         return ret
 
-    def read(self) -> str:
+    def read(self, extra_delay=0) -> str:
         """
         Reads terminal and prints terminal output with ansi escape characters included.
         :returns: Decoded terminal output with ansi escape characters removed.
@@ -415,9 +424,16 @@ class RouterOS:
         print(f"=== READ ===")
         # Some sort of regex magic to remove escape characters
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
-        serial_ret = self.serial_port.read(100000)
+        time.sleep(0.5)
+        serial_ret = b''
+        while self.serial_port.in_waiting > 0:
+            self.serial_port.timeout = ((self.serial_port.in_waiting * 8) / self.serial_port.baudrate) + 1
+            serial_ret += self.serial_port.read(self.serial_port.in_waiting)
+            sys.stdout.write("\r\rRemaining: {0}".format(str(self.serial_port.in_waiting)))
+            sys.stdout.flush()
+            time.sleep(extra_delay)
 
-
+        print("")
         serial_ret = serial_ret.decode()
         serial_ret = ansi_escape.sub('', serial_ret)
         lines = serial_ret.split("\r")
@@ -429,7 +445,7 @@ class RouterOS:
             return serial_ret
         else:
             print("Did not reach end of read")
-            return ""
+            return "NULL"
 
     def login(self) -> bool:
         """
