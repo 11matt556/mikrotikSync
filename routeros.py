@@ -411,7 +411,6 @@ class RouterOS:
             else:
                 break
 
-
         print("")
         serial_ret = serial_ret.decode()
         serial_ret = ansi_escape.sub('', serial_ret)
