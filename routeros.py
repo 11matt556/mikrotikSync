@@ -51,7 +51,7 @@ class MikrotikDNS(base_classes.DNSServer):
         attempt = 0
         while res == "NULL":
             self._ros_handle.write("/ip/dns/static/export")
-            res = self._ros_handle.read(extra_delay=attempt)
+            res = self._ros_handle.read()
             attempt += 1
         static_dns_records: Dict[str, MikrotikDNS.DNSRecord] = {}
 
@@ -201,7 +201,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
             while _result == "NULL":
                 self._ros_handle.write(command)
                 self._ros_handle.write("")
-                _result = self._ros_handle.read(extra_delay=attempt)
+                _result = self._ros_handle.read()
                 attempt += 1
             return _result
 
@@ -217,7 +217,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
 
             # Find the start of the 'real' data (after the terminal prompt)
             # \[[^\]]+@[^\]]+\] looks for terminal prompt in format of [user@something]
-            if "/ip/dhcp-server/lease export terse" in item and re.search('\[[^\]]+@[^\]]+\]', item) is not None:
+            if "/ip/dhcp-server/lease export terse" in item and re.search('\[[^]]+@[^]]+]', item) is not None:
                 start_index = index + 1
 
             # Cut off the trailing garbage on the last line
@@ -230,7 +230,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
 
         for item in items:
             # ([\w-]+)=(".+?"|[\S]+)(?= [\w-]+=|\s*\Z) does two group matches on key=value string
-            matches = re.findall('([\w-]+)=(".+?"|[\S]+)(?= [\w-]+=|\s*\Z)', item)
+            matches = re.findall('([\w-]+)=(".+?"|\S+)(?= [\w-]+=|\s*\Z)', item)
             matches_dict = dict((key, val) for key, val in matches)
 
             static = True
@@ -381,7 +381,7 @@ class RouterOS:
             print("=== END WRITE ===")
         return ret
 
-    def read(self, extra_delay=0) -> str:
+    def read(self) -> str:
         """
         Reads terminal and prints terminal output with ansi escape characters included.
         :returns: Decoded terminal output with ansi escape characters removed.
@@ -392,13 +392,14 @@ class RouterOS:
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
         time.sleep(0.5)
         serial_ret = b''
-        #while self.serial_port.in_waiting > 0:
-            #self.serial_port.timeout = ((self.serial_port.in_waiting * 8) / self.serial_port.baudrate) + extra_delay + 1
-            #time.sleep(extra_delay)
-            #serial_ret += self.serial_port.read(self.serial_port.in_waiting)
-            #sys.stdout.write("\r\rRemaining: {0}".format(str(self.serial_port.in_waiting)))
-            #sys.stdout.flush()
-
+        """
+        while self.serial_port.in_waiting > 0:
+            self.serial_port.timeout = ((self.serial_port.in_waiting * 8) / self.serial_port.baudrate) + extra_delay + 1
+            time.sleep(extra_delay)
+            serial_ret += self.serial_port.read(self.serial_port.in_waiting)
+            sys.stdout.write("\r\rRemaining: {0}".format(str(self.serial_port.in_waiting)))
+            sys.stdout.flush()
+        """
         # Changing the latency timer to 1ms seems to have allowed this to work, but the while loop above still
         # doesn't work.
         while True:
