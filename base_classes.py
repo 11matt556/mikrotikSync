@@ -135,7 +135,7 @@ class DHCPServer:
             print("")
 
     @abstractmethod
-    def import_dhcp_leases(self):
+    def lease_config_export(self):
         """
         Read DHCP leases. Implemented by DHCP server of Pfsense and RouterOS
         :returns: Dictionary of DHCP leases keyed on mac_address address

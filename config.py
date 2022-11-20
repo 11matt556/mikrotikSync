@@ -9,5 +9,5 @@ pf_print = False
 ros_print = True
 ros_skip_import = False
 ros_setMode = ""  # Valid options are switch or router. Anything else will have no effect.
-ros_add_records = False  # Add records. If both adding and removing records, adding happens first
+ros_add_records = True  # Add records. If both adding and removing records, adding happens first
 ros_remove_records = False  # Remove records added by this script

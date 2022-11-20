@@ -12,13 +12,13 @@ def main():
                                  baud_rate=config.serial_baud_rate,
                                  skip_import=config.ros_skip_import)
 
-    if config.pf_print:
-        pfsense.dhcp_server.print_dhcp_leases()
-        pfsense.dns_server.print_dns_records()
+    #if config.pf_print:
+    #    pfsense.dhcp_server.print_dhcp_leases()
+    #    pfsense.dns_server.print_dns_records()
 
-    if config.ros_print and not config.ros_skip_import:
-        backup_router.dhcp_server.print_dhcp_leases()
-        backup_router.dns_server.print_dns_records()
+    #if config.ros_print and not config.ros_skip_import:
+    #    backup_router.dhcp_server.print_dhcp_leases()
+    #    backup_router.dns_server.print_dns_records()
 
     if config.ros_setMode == 'switch' or config.ros_setMode == 'router':
         backup_router.set_mode(config.ros_setMode)

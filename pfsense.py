@@ -40,13 +40,13 @@ class PfsenseDHCP(base_classes.DHCPServer):
     def __init__(self, static_lease_path, dynamic_lease_path):
         self._static_lease_path = static_lease_path
         self._dynamic_lease_path = dynamic_lease_path
-        self._leases = self.import_dhcp_leases()
+        self._leases = self.lease_config_export()
 
     def print_dhcp_leases(self):
         print("====PFSENSE====")
         super().print_dhcp_leases()
 
-    def import_dhcp_leases(self):
+    def lease_config_export(self):
         leases = {}
         domain_name = ''
 

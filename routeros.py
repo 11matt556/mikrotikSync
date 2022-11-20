@@ -34,7 +34,7 @@ class MikrotikDNS(base_classes.DNSServer):
         :rtype: dict[str, MikrotikDNS.DNSRecord]
 
         EXAMPLE CONSOLE OUTPUT
-        [admin@mk_sw3] > /ip/dns/static/export 
+        [admin@mk_sw3] > /ip/dns/static/export
         # oct/30/2022 22:27:32 by RouterOS 7.5
         # software id = 1IFA-YT6T
         #
@@ -178,7 +178,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         """
         self._ros_handle = handle
         if not skip_import:
-            self._leases = self.import_dhcp_leases()
+            self._leases = self.lease_config_export()
 
         # _leases are keyed on MAC address
 
@@ -186,87 +186,76 @@ class MikrotikDHCP(base_classes.DHCPServer):
         print("====MIKROTIK====")
         super().print_dhcp_leases()
 
-    def import_dhcp_leases(self):
+    def lease_config_export(self):
         """
         Load all current DHCP leases from the RouterOS console.
         :returns: Dictionary of MikrotikDHCP.DHCPLease keyed on MAC address
         :rtype: dict[str, MikrotikDHCP.DHCPLease]
         """
+
+        # TODO: Change how read and write is handled so re-attempts can be moved there
+        def retry_command(command):
+            attempt = 0
+            _result = "NULL"
+
+            while _result == "NULL":
+                self._ros_handle.write(command)
+                self._ros_handle.write("")
+                _result = self._ros_handle.read(extra_delay=attempt)
+                attempt += 1
+            return _result
+
         print("Importing RouterOS DHCP Leases")
-        res = "NULL"
-        attempt = 0
-        while res == "NULL":
-            self._ros_handle.write("/ip/dhcp-server/lease export")
-            res = self._ros_handle.read(extra_delay=attempt)
-            attempt += 1
+
+        result = retry_command("/ip/dhcp-server/lease export terse")
+        items = re.split('/ip dhcp-server lease add', result.replace("\r\n", ""))
+        start_index = 0
+        # Massage the list a little bit
+        for index, item in enumerate(items):
+            # Strip out any leading or trailing whitespace
+            items[index] = item.strip()
+
+            # Find the start of the 'real' data (after the terminal prompt)
+            # \[[^\]]+@[^\]]+\] looks for terminal prompt in format of [user@something]
+            if "/ip/dhcp-server/lease export terse" in item and re.search('\[[^\]]+@[^\]]+\]', item) is not None:
+                start_index = index + 1
+
+            # Cut off the trailing garbage on the last line
+            if index == len(items)-1:
+                end_of_item = item.find("\r") - 1
+                items[index] = items[index][:end_of_item]
+
+        items = items[start_index:]
         dhcp_leases: Dict[str, MikrotikDHCP.DHCPLease] = {}
 
-        iter_items = iter(re.split(' |\r\n', res))
-        debug_items = re.split(' |\r\n', res)
-        ip_address = None
-        lease_time = None
-        mac_address = None
-        hostname = None
-        static = None
-        comment = None
+        for item in items:
+            # ([\w-]+)=(".+?"|[\S]+)(?= [\w-]+=|\s*\Z) does two group matches on key=value string
+            matches = re.findall('([\w-]+)=(".+?"|[\S]+)(?= [\w-]+=|\s*\Z)', item)
+            matches_dict = dict((key, val) for key, val in matches)
 
-        def submit_info():
-            # Commit the values we found to dhcp_leases
+            static = True
+            mac_address = matches_dict['mac-address']
 
-            nonlocal ip_address
-            nonlocal lease_time
-            nonlocal mac_address
-            nonlocal hostname
-            nonlocal static
-            nonlocal comment
+            try:
+                ip_address = matches_dict['address']
+            except KeyError:
+                # Value not used. Assume system default is used.
+                # 0.0.0.0 means RouterOS will assign an IP dynamically
+                static = False
+                ip_address = "0.0.0.0"
 
-            if lease_time is None:
-                # If no lease time was found assume it is static
-                static = True
+            try:
+                hostname = matches_dict['client-id']
+            except KeyError:
+                hostname = None
 
-            # Wasn't able to determine static in initial parse, but if lease doesn't expire it must be static
-            if static is None and (lease_time is None or lease_time == timedelta(minutes=0)):
-                # Must be static if lease never expires
-                static = True
+            try:
+                comment = matches_dict['comment'][1:-1]  # Stripping quotes from terminal return
+            except KeyError:
+                comment = None
 
-            dhcp_leases[mac_address] = MikrotikDHCP.DHCPLease(mac_address, hostname, static, ip_address,
-                                                              lease_duration=lease_time, comment=comment)
-            lease_time = None
-            mac_address = None
-            hostname = None
-            static = None
-            ip_address = None
-            comment = None
-
-        def skip_until_value_found():
-            nonlocal item
-            nonlocal iter_items
-            item = next(iter_items)
-            while item == "":
-                item = next(iter_items)
-            return item
-
-        # TODO: Make this more robust against malignant comments.
-        for item in iter_items:
-
-            if item.startswith("add") and mac_address is not None:
-                # We are at the start of a new loop
-                submit_info()
-
-            if item.startswith("address=") and ip_address is None:
-                ip_address = item[8:]
-
-            if item.startswith("lease-time="):
-                lease_time = item[11:]
-
-                if lease_time[0].isnumeric():
-                    if int(lease_time[0]) == 0:
-                        static = True
-
-                else:
-                    print("Lease time is not a number!")
-                    raise Exception
-
+            try:
+                lease_time = matches_dict['lease-time']
                 if lease_time[-1] == "s":
                     lease_time = timedelta(seconds=int(lease_time[:-1]))
                 elif lease_time[-1] == "m":
@@ -278,39 +267,16 @@ class MikrotikDHCP(base_classes.DHCPServer):
                 else:
                     print("WARNING: Couldn't parse lease duration. Assuming it is in hours.")
                     lease_time = timedelta(hours=int(lease_time[:-1]))
-                    #raise Exception
+            except KeyError:
+                # If not set, use the default routeros lease time of 0 (never expires)
+                lease_time = timedelta(seconds=0)
 
-            if item.startswith("mac-address="):
-                assert mac_address is None
-                if "=\\" in item:
-                    mac_address = str.lower(skip_until_value_found())
-                else:
-                    mac_address = str.lower(item[12:])
-
-            if item.startswith("client-id="):
-                hostname = item[10:].replace("\"", "")
-
-            if item.startswith("comment="):
-                # Find start of comment
-                if "=\\" in item:
-                    comment = skip_until_value_found()
-                else:
-                    comment = item[8:]
-
-                # Do-While not at end of comment
-                while True:
-                    item = next(iter_items)
-                    comment = f"{comment} {item}"
-                    if "static:" in item:
-                        val = item.split(":")[-1].replace(".", "").replace("\"", "")
-                        static = eval(val)
-                    if item[-1] == "\"":
-                        break
-
-        # Deal with the case at the end of loop where return to 'add' never happens (I.E, only 1 entry or on last entry)
-        if mac_address:
-            submit_info()
-
+            dhcp_leases[mac_address] = MikrotikDHCP.DHCPLease(mac_address,
+                                                              hostname,
+                                                              static,
+                                                              ip_address,
+                                                              lease_duration=lease_time,
+                                                              comment=comment)
         return dhcp_leases
 
     def add_single_dhcp_lease(self, lease: base_classes.DHCPServer.DHCPLease):
@@ -350,7 +316,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         for mac in leases:
             self.add_single_dhcp_lease(leases[mac])
 
-        self._leases = self.import_dhcp_leases()
+        self._leases = self.lease_config_export()
 
     def remove_dhcp_lease_matching_mac(self, lease: base_classes.DHCPServer.DHCPLease):
         key = lease.mac_address
@@ -369,7 +335,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
         command = f"/ip/dhcp-server/lease/remove [find comment~\"Added by pfsense\"]"
         self._ros_handle.write(command)
         self._ros_handle.read()
-        self._leases = self.import_dhcp_leases()
+        self._leases = self.lease_config_export()
 
 
 class RouterOS:
@@ -384,7 +350,7 @@ class RouterOS:
             self.serial_port.parity = "E"
             self.serial_port.stopbits = 1
             self.serial_port.bytesize = 8
-            self.serial_port.timeout = 30
+            self.serial_port.timeout = 1
             assert self.serial_port.is_open
         else:
             print(f"{connection_string} is Invalid or Not Implemented! ")
@@ -426,12 +392,24 @@ class RouterOS:
         ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
         time.sleep(0.5)
         serial_ret = b''
-        while self.serial_port.in_waiting > 0:
-            self.serial_port.timeout = ((self.serial_port.in_waiting * 8) / self.serial_port.baudrate) + 1
-            serial_ret += self.serial_port.read(self.serial_port.in_waiting)
+        #while self.serial_port.in_waiting > 0:
+            #self.serial_port.timeout = ((self.serial_port.in_waiting * 8) / self.serial_port.baudrate) + extra_delay + 1
+            #time.sleep(extra_delay)
+            #serial_ret += self.serial_port.read(self.serial_port.in_waiting)
+            #sys.stdout.write("\r\rRemaining: {0}".format(str(self.serial_port.in_waiting)))
+            #sys.stdout.flush()
+
+        # Changing the latency timer to 1ms seems to have allowed this to work, but the while loop above still
+        # doesn't work.
+        while True:
             sys.stdout.write("\r\rRemaining: {0}".format(str(self.serial_port.in_waiting)))
             sys.stdout.flush()
-            time.sleep(extra_delay)
+            ret = self.serial_port.read(1)
+            if ret:
+                serial_ret += ret
+            else:
+                break
+
 
         print("")
         serial_ret = serial_ret.decode()
