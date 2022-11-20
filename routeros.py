@@ -232,8 +232,6 @@ class MikrotikDHCP(base_classes.DHCPServer):
             # ([\w-]+)=(".+?"|[\S]+)(?= [\w-]+=|\s*\Z) does two group matches on key=value string
             matches = re.findall('([\w-]+)=(".+?"|\S+)(?= [\w-]+=|\s*\Z)', item)
             matches_dict = dict((key, val) for key, val in matches)
-
-            static = True
             mac_address = matches_dict['mac-address']
 
             try:
@@ -255,6 +253,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
                 comment = None
 
             try:
+                static = False
                 lease_time = matches_dict['lease-time']
                 if lease_time[-1] == "s":
                     lease_time = timedelta(seconds=int(lease_time[:-1]))
@@ -270,6 +269,7 @@ class MikrotikDHCP(base_classes.DHCPServer):
             except KeyError:
                 # If not set, use the default routeros lease time of 0 (never expires)
                 lease_time = timedelta(seconds=0)
+                static = True
 
             dhcp_leases[mac_address] = MikrotikDHCP.DHCPLease(mac_address,
                                                               hostname,

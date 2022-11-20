@@ -69,7 +69,7 @@ class PfsenseDHCP(base_classes.DHCPServer):
                         line = next(lines)
 
                         if "hardware ethernet" in line:
-                            mac = line.replace(";", "").split(" ")[-1]
+                            mac = line.replace(";", "").split(" ")[-1].upper()
                             continue
                         if "fixed-address" in line:
                             ip = line.replace(";", "").split(" ")[-1]
@@ -107,7 +107,7 @@ class PfsenseDHCP(base_classes.DHCPServer):
                             lease_end = datetime.strptime(f"{datetime_list[0]} {datetime_list[1]}",
                                                           "%Y/%m/%d %H:%M:%S")
                         if "hardware ethernet" in line:
-                            mac_address = line.replace(";", "").split(" ")[-1]
+                            mac_address = line.replace(";", "").split(" ")[-1].upper()
 
                         if "client-hostname" in line:
                             hostname = line.replace(";", "").split(" ")[-1].replace("\"", "") + domain_name
