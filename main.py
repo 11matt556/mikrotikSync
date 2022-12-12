@@ -1,42 +1,80 @@
-import pfsense as pf
-import routeros as ros
-import config
+from __future__ import annotations  # for Python 3.7-3.9
+
+from routeros import MikrotikDevice
+from routeros import MikrotikDHCPLease
+from routeros import MikrotikDNSRecord
+from pfsense import PfsenseDevice
+import secrets
+
+
+def print_list_dict(data_list: list[dict], title=None):
+    """
+    Pretty print list of dicts.
+
+    :param list[dict] data_list: List of dictionaries to print
+    :param str title: Optional text to print at the start of the dictionary. <br \>
+    Center justified with '=' fill characters
+    """
+    if title:
+        print(f"{title:=^32}")
+    for data_dict in data_list:
+        pretty_print_dict(data_dict)
+
+
+def pretty_print_dict(data_dict: dict):
+    for key in data_dict.keys():
+        print(f"{key: >11}: {data_dict[key]}")
+    print("")
 
 
 def main():
-    pfsense = pf.Pfsense(static_lease_path=config.static_lease_path,
-                         dynamic_lease_path=config.dynamic_lease_path,
-                         host_entries_path=config.host_entries_path)
+    pfsense_static_dns = PfsenseDevice.get_reserved_dns_records()
+    print_list_dict(pfsense_static_dns, "Static DNS")
 
-    backup_router = ros.RouterOS(connection_string=config.serial_tty_path,
-                                 baud_rate=config.serial_baud_rate,
-                                 skip_import=config.ros_skip_import)
+    pfsense_static_leases = PfsenseDevice.get_reserved_dhcp_leases()
+    print_list_dict(pfsense_static_leases, "Static Leases")
 
-    if config.ros_setMode == 'switch' or config.ros_setMode == 'router':
-        backup_router.set_mode(config.ros_setMode)
+    pfsense_dynamic_leases = PfsenseDevice.get_dynamic_dhcp_leases()
+    print_list_dict(pfsense_dynamic_leases, "Dynamic Leases")
 
-    if config.ros_add_records:
-        print("=== ADDING RECORDS ===")
-        backup_router.dhcp_server.add_dhcp_leases(pfsense.dhcp_server.get_all_dhcp_leases())
-        backup_router.dns_server.add_dns_records(pfsense.dns_server.get_all_dns_records())
-        print("=== RECORDS ADDED ===")
+    mikrotik_device_handler = MikrotikDevice()
+    mikrotik_device_handler.connect("COM3", 115200, secrets.routeros_username, secrets.routeros_password)
+    print("Connected")
 
-    if config.ros_remove_records:
-        print("=== Removing records added by this script ===")
-        backup_router.dhcp_server.remove_all_pfsense_records()
-        backup_router.dns_server.remove_all_pfsense_records()
-        print("===  RECORDS REMOVED ===")
+    print("Removing pfsense dns records from mikrotik")
+    mikrotik_device_handler.remove_static_dns_records_with_comment_containing("Added by pfsense")
+    print("Removing pfsense dhcp leases from mikrotik")
+    mikrotik_device_handler.remove_reserved_dhcp_leases_with_comment_containing("Added by pfsense")
 
-    if config.pf_print:
-        pfsense.dhcp_server.print_dhcp_leases()
-        pfsense.dns_server.print_dns_records()
+    print("Adding pfsense dns records to mikrotik")
+    for pf_dns in pfsense_static_dns:
+        mk_dns = MikrotikDNSRecord(ip_address=pf_dns['ip_address'],
+                                   hostname=pf_dns['hostname'],
+                                   record_type=pf_dns['record_type'],
+                                   disabled=True,
+                                   comment="mode:router. Added by pfsense.")
+        mikrotik_device_handler.write_static_dns_record(mk_dns)
 
-    if config.ros_print and not config.ros_skip_import:
-        backup_router.dhcp_server.print_dhcp_leases()
-        backup_router.dns_server.print_dns_records()
+    print("Adding pfsense dhcp leases to mikrotik")
+    for pf_lease in pfsense_static_leases:
+        mk_lease = MikrotikDHCPLease(mac_address=pf_lease['mac_address'],
+                                     ip_address=pf_lease['ip_address'],
+                                     hostname=pf_lease['hostname'],
+                                     lease_duration=pf_lease['lease_duration'],
+                                     disabled=True,
+                                     comment="mode:router. Added by pfsense.")
+        mikrotik_device_handler.write_reserved_dhcp_lease(mk_lease)
 
-    print("Done.")
+    mikrotik_reserved_dns = mikrotik_device_handler.get_static_dns_records()
+    mikrotik_reserved_leases = mikrotik_device_handler.get_reserved_dhcp_leases()
+
+    print_list_dict(mikrotik_reserved_dns, "Mikrotik Static DNS")
+    print_list_dict(mikrotik_reserved_leases, "Mikrotik Reserved Leases")
+
+    mikrotik_device_handler.disconnect()
+    print("Disconnected")
 
 
 if __name__ == "__main__":
     main()
+    print("Done")
