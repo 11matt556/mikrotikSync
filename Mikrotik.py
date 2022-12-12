@@ -68,8 +68,8 @@ class MikrotikDNSRecord(DNSRecord):
 
 
 class MikrotikDevice:
-    serial_port: Serial
-    logged_in: bool
+    _serial_port: Serial
+    _logged_in: bool
 
     def get_static_dns_records(self) -> list[MikrotikDNSRecord]:
         print("RouterOS: Importing Reserved DNS Records")
@@ -315,7 +315,7 @@ class MikrotikDevice:
         polished_read_result = ''
         while not expected_prompt(polished_read_result):
             time.sleep(0.5)
-            raw_read_result = self.serial_port.read(self.serial_port.in_waiting)
+            raw_read_result = self._serial_port.read(self._serial_port.in_waiting)
             read_attempt += 1
             if raw_read_result:
                 polished_read_result += ansi_escape.sub('', raw_read_result.decode())
@@ -325,29 +325,29 @@ class MikrotikDevice:
 
         print("")
         print(polished_read_result)
-        self.serial_port.flushInput()
+        self._serial_port.flushInput()
         print(f"=== END READ ===")
         return polished_read_result
 
     def _write(self, command):
         print("=== BEGIN WRITE ===")
         print(command)
-        ret = self.serial_port.write(f"{command}\r\n".encode())
-        self.serial_port.flush()
+        ret = self._serial_port.write(f"{command}\r\n".encode())
+        self._serial_port.flush()
         print("=== END WRITE ===")
         return ret
 
     def connect(self, tty_path: str, baudrate: int, username: str, password: str):
-        self.serial_port = Serial(tty_path, baudrate=baudrate, parity="E", stopbits=1, bytesize=8, timeout=18)
+        self._serial_port = Serial(tty_path, baudrate=baudrate, parity="E", stopbits=1, bytesize=8, timeout=18)
         self._login(username, password)
-        return self.logged_in
+        return self._logged_in
 
     def disconnect(self):
-        if self.logged_in:
+        if self._logged_in:
             self._logout()
 
-        if self.serial_port.is_open:
-            self.serial_port.close()
+        if self._serial_port.is_open:
+            self._serial_port.close()
 
     def _login(self, username: str, password: str) -> bool | str:
         """
@@ -371,15 +371,15 @@ class MikrotikDevice:
 
         if on_terminal_prompt(read_res):
             # Already logged in or successfully logged in
-            self.logged_in = True
+            self._logged_in = True
             return True
         else:
-            self.logged_in = False
+            self._logged_in = False
             return read_res
 
     def _logout(self):
         self.send_command("/quit", look_for='login')
-        self.logged_in = False
+        self._logged_in = False
 
     def __del__(self):
         self.disconnect()
