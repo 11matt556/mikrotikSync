@@ -1,9 +1,10 @@
 from __future__ import annotations  # for Python 3.7-3.9
 
-from routeros import MikrotikDevice
-from routeros import MikrotikDHCPLease
-from routeros import MikrotikDNSRecord
-from pfsense import PfsenseDevice
+from Mikrotik import MikrotikDevice
+from Mikrotik import MikrotikDHCPLease
+from Mikrotik import MikrotikDNSRecord
+from PFSense import PFSenseDevice
+
 import secrets
 
 
@@ -28,13 +29,13 @@ def pretty_print_dict(data_dict: dict):
 
 
 def main():
-    pfsense_static_dns = PfsenseDevice.get_reserved_dns_records()
+    pfsense_static_dns = PFSenseDevice.get_reserved_dns_records()
     print_list_dict(pfsense_static_dns, "Static DNS")
 
-    pfsense_static_leases = PfsenseDevice.get_reserved_dhcp_leases()
+    pfsense_static_leases = PFSenseDevice.get_reserved_dhcp_leases()
     print_list_dict(pfsense_static_leases, "Static Leases")
 
-    pfsense_dynamic_leases = PfsenseDevice.get_dynamic_dhcp_leases()
+    pfsense_dynamic_leases = PFSenseDevice.get_dynamic_dhcp_leases()
     print_list_dict(pfsense_dynamic_leases, "Dynamic Leases")
 
     mikrotik_device_handler = MikrotikDevice()

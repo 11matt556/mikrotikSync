@@ -1,14 +1,14 @@
 from __future__ import annotations  # for Python 3.7-3.9
-from BaseClasses import DNSRecord
-from BaseClasses import DHCPLease
-from BaseClasses import RegexHelper
-
 from serial import Serial
 from datetime import timedelta
 
 import time
 import sys
 import re
+
+from Shared import DNSRecord
+from Shared import DHCPLease
+from Shared import RegexHelper
 
 
 def on_terminal_prompt(data):

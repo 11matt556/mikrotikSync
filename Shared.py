@@ -1,7 +1,8 @@
 from __future__ import annotations  # for Python 3.7-3.9
 from typing_extensions import TypedDict
-import re
 from datetime import timedelta
+
+import re
 
 
 class RegexHelper:

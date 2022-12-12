@@ -1,15 +1,15 @@
 from __future__ import annotations  # for Python 3.7-3.9
-
 from datetime import datetime
 from datetime import timedelta
 
 import config
-from BaseClasses import DHCPLease
-from BaseClasses import DNSRecord
-from BaseClasses import RegexHelper
+
+from Shared import DHCPLease
+from Shared import DNSRecord
+from Shared import RegexHelper
 
 
-class PfsenseDevice:
+class PFSenseDevice:
     """
     Collection of methods for parsing Pfsense configuration
     """
@@ -51,7 +51,7 @@ class PfsenseDevice:
         """
         file_path = config.dhcp_leases_file
         leases: list[DHCPLease] = []
-        domain_name = PfsenseDevice.get_domain_name()
+        domain_name = PFSenseDevice.get_domain_name()
 
         with open(file_path, 'r') as reader:
             file = reader.read()
@@ -87,7 +87,7 @@ class PfsenseDevice:
                         mac_address=mac_address,
                         ip_address=ip_address,
                         hostname=hostname,
-                        lease_duration=lease_end-lease_start
+                        lease_duration=lease_end - lease_start
                     ))
             return leases
 
