@@ -71,6 +71,8 @@ class MikrotikDevice:
     _serial_port: Serial
     _logged_in: bool
 
+
+
     def get_static_dns_records(self) -> list[MikrotikDNSRecord]:
         print("RouterOS: Importing Reserved DNS Records")
         reserved_dns_records: list[MikrotikDNSRecord] = []
@@ -162,7 +164,7 @@ class MikrotikDevice:
         self.send_command(command)
         return True
 
-    def remove_static_dns_records_with_comment_containing(self, message: str):
+    def remove_static_dns_with_comment_containing(self, message: str):
         command = f"/ip/dns/static/remove [find comment~\"{message}\"]"
         self.send_command(command)
 
@@ -287,8 +289,8 @@ class MikrotikDevice:
         self.send_command(command)
         return True
 
-    def remove_reserved_dhcp_leases_with_comment_containing(self, message: str):
-        command = f"/ip/dhcp-server/lease/remove [find~comment\"{message}\"]"
+    def remove_static_leases_with_comment_containing(self, message: str):
+        command = f"/ip/dhcp-server/lease/remove [find comment~\"{message}\"]"
         self.send_command(command)
 
     def send_command(self, command: str, look_for='terminal'):
