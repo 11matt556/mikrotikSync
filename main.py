@@ -1,10 +1,31 @@
 from __future__ import annotations  # for Python 3.7-3.9
+import sys
 
+import config
 import secrets
 from Mikrotik import MikrotikDHCPLease
 from Mikrotik import MikrotikDNSRecord
 from Mikrotik import MikrotikDevice
 from PFSense import PFSenseDevice
+
+import platform  # For getting the operating system name
+import subprocess  # For executing a shell command
+
+
+# Credit to https://stackoverflow.com/questions/2953462/pinging-servers-in-python
+def ping(host):
+    """
+    Returns True if host (str) responds to a ping request.
+    Remember that a host may not respond to a ping (ICMP) request even if the host name is valid.
+    """
+
+    # Option for the number of packets as a function of
+    param = '-n' if platform.system().lower() == 'windows' else '-c'
+
+    # Building the command. Ex: "ping -c 1 google.com"
+    command = ['ping', param, '1', host]
+
+    return subprocess.call(command) == 0
 
 
 def set_backup_router_to_standby(backup_router: MikrotikDevice):
@@ -74,47 +95,70 @@ def pretty_print_dict(data_dict: dict):
     print("")
 
 
-# TODO: Add commandline switches to handle transfer between mikrotik primary and secondary roles
 # TODO: Handle diffs between Mikrotik and Pfsense. For now it is simple enough to just remove and recreate.
 
-def main():
-    # Get pfsense records
-    pfsense_static_dns = PFSenseDevice.get_reserved_dns_records()
-    pfsense_static_leases = PFSenseDevice.get_reserved_dhcp_leases()
-    pfsense_dynamic_leases = PFSenseDevice.get_dynamic_dhcp_leases()
+def main(action):
+    assert action is not None
 
-    # Print pfsense records
-    print_list_dict(pfsense_static_dns, "Pfsense Static DNS")
-    print_list_dict(pfsense_static_leases, "Pfsense Static Leases")
-    print_list_dict(pfsense_dynamic_leases, "Pfsense Dynamic Leases")
-
-    # Connect to and login to RouterOS
+    # Connect and login to RouterOS
     mikro_device = MikrotikDevice()
-    mikro_device.connect("COM3", 115200, secrets.routeros_username, secrets.routeros_password)
+    mikro_device.connect(config.serial_port, config.baud_rate, secrets.routeros_username, secrets.routeros_password)
     print("Connected")
 
-    # Set to standby mode
-    standby_mode = set_backup_router_to_standby(mikro_device)
-    assert standby_mode is True
+    if action == "sync":
+        # Get pfsense records
+        pfsense_static_dns = PFSenseDevice.get_reserved_dns_records()
+        pfsense_static_leases = PFSenseDevice.get_reserved_dhcp_leases()
+        pfsense_dynamic_leases = PFSenseDevice.get_dynamic_dhcp_leases()
+        print("Pfsense records loaded")
+        # Clear all add pfsense records added to RouterOS
+        remove_pfsense_records_from_backup(mikro_device)
 
-    # Clear all add pfsense records added to RouterOS
-    remove_pfsense_records_from_backup(mikro_device)
+        # Add current Pfsense records
+        add_static_pfsense_records_to_backup(pfsense_static_dns, pfsense_static_leases, mikro_device)
 
-    # Add current Pfsense records
-    add_static_pfsense_records_to_backup(pfsense_static_dns, pfsense_static_leases, mikro_device)
+        # Print pfsense records
+        print_list_dict(pfsense_static_dns, "Pfsense Static DNS")
+        print_list_dict(pfsense_static_leases, "Pfsense Static Leases")
+        print_list_dict(pfsense_dynamic_leases, "Pfsense Dynamic Leases")
 
-    # Get RouterOS records
-    mikrotik_static_dns = mikro_device.get_static_dns_records()
-    mikrotik_static_leases = mikro_device.get_reserved_dhcp_leases()
+        # Get RouterOS records
+        mikrotik_static_dns = mikro_device.get_static_dns_records()
+        mikrotik_static_leases = mikro_device.get_reserved_dhcp_leases()
 
-    # Print RouterOS records
-    print_list_dict(mikrotik_static_dns, "Mikrotik Static DNS")
-    print_list_dict(mikrotik_static_leases, "Mikrotik Reserved Leases")
+        # Print RouterOS records
+        print_list_dict(mikrotik_static_dns, "Mikrotik Static DNS")
+        print_list_dict(mikrotik_static_leases, "Mikrotik Reserved Leases")
+
+    # Script has been, presumably, called from /etc/devd in response to a LINK_UP event
+    if action == "link_up":
+        # Ping a couple of things to make sure we are connected to the expected network
+        if ping("10.0.0.2") or ping("10.0.0.3") or ping("10.0.0.20"):
+            # Set backup device to back to standby mode (I.E, change it back to 'switch mode')
+            standby_mode = set_backup_router_to_standby(mikro_device)
+            assert standby_mode is True
+            print("Pfsense operational. Mikrotik configured for standby mode")
+        else:
+            print("Unable to locate any expected LAN devices.")
+
+    else:
+        print("Invalid action")
 
     mikro_device.disconnect()
     print("Disconnected")
 
 
 if __name__ == "__main__":
-    main()
-    print("Done")
+    if "--sync" in sys.argv:
+        main("sync")
+    elif "--link_up" in sys.argv:
+        main("link_up")
+    else:
+        print("Usage: main.py ACTION")
+        print("ACTION")
+        print("--sync")
+        print("Synchronize pfsense records to the backup routeros device")
+        print("--link_up")
+        print("Indicates to the application that pfsense is ready to resume control. "
+              "Script checks for select LAN devices before commanding backup router to resume standby.")
+

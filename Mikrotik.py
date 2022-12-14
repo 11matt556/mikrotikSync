@@ -71,8 +71,6 @@ class MikrotikDevice:
     _serial_port: Serial
     _logged_in: bool
 
-
-
     def get_static_dns_records(self) -> list[MikrotikDNSRecord]:
         print("RouterOS: Importing Reserved DNS Records")
         reserved_dns_records: list[MikrotikDNSRecord] = []

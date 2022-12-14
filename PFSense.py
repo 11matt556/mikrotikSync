@@ -106,12 +106,15 @@ class PFSenseDevice:
             lines = iter(file.split("\n"))
             subclass_prefix = ''
             domain_name = ''
+            default_lease_seconds = 7200
 
             for line in lines:
                 if line.startswith("option domain-name") and domain_name == '':
                     domain_name = f".{RegexHelper.quoted_text.search(line).group(1)}"
                 if line.startswith("class"):
                     subclass_prefix = RegexHelper.quoted_text.search(line).group(1)
+                if line.startswith("default-lease-time"):
+                    default_lease_seconds = int(line.replace(";", "").split(" ")[-1])
                 if subclass_prefix != '':
                     if line.startswith(f'host {subclass_prefix}_'):
                         mac_address, ip_address, hostname = "", "", ""
@@ -133,7 +136,7 @@ class PFSenseDevice:
                             mac_address=mac_address,
                             ip_address=ip_address,
                             hostname=hostname,
-                            lease_duration=timedelta(seconds=0)
+                            lease_duration=timedelta(seconds=default_lease_seconds)
                         ))
         return leases
 

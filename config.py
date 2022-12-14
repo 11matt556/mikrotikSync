@@ -22,3 +22,6 @@ host_entries_file = 'host_entries.conf'  # /var/unbound/host_entries.conf
 | Path to host_entries.con (Static DNS / DNS Alias)
 | pfsense path: /var/unbound/host_entries.conf
 """
+
+serial_port = "COM3"
+baud_rate = 115200
