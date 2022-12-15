@@ -95,6 +95,19 @@ def pretty_print_dict(data_dict: dict):
     print("")
 
 
+"""
+Usage Notes / Reminders:
+/etc/devd.conf must be edited to include something like 
+action "/usr/local/bin/python3.8 /pySync/main.py --link_up";
+on link up
+
+Since the RouterOS link can briefly go down during reconfiguration back-to-back LINK_UP devd events can
+be triggered, resulting in an endless loop.
+"""
+
+
+# TODO: Fix possible endless loop. Probably by logging when the last runtime was and throttling based on that.
+# TODO: Add some basic sys logging functionality for monitoring.
 # TODO: Handle diffs between Mikrotik and Pfsense. For now it is simple enough to just remove and recreate.
 
 def main(action):
@@ -131,7 +144,7 @@ def main(action):
         print_list_dict(mikrotik_static_leases, "Mikrotik Reserved Leases")
 
     # Script has been, presumably, called from /etc/devd in response to a LINK_UP event
-    if action == "link_up":
+    elif action == "link_up":
         # Ping a couple of things to make sure we are connected to the expected network
         if ping("10.0.0.2") or ping("10.0.0.3") or ping("10.0.0.20"):
             # Set backup device to back to standby mode (I.E, change it back to 'switch mode')
@@ -159,6 +172,6 @@ if __name__ == "__main__":
         print("--sync")
         print("Synchronize pfsense records to the backup routeros device")
         print("--link_up")
-        print("Indicates to the application that pfsense is ready to resume control. "
-              "Script checks for select LAN devices before commanding backup router to resume standby.")
-
+        print("Indicates to the application that pfsense is ready to resume control.")
+        print("In other words, it sets the standby router to the standby configuration")
+        print("Script checks for presence of LAN devices before commanding backup router to return to standby config.")
