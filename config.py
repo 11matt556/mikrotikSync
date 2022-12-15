@@ -5,7 +5,7 @@
 | host_entries_file -> static dns
 """
 
-dhcpd_conf_file:str = 'dhcpd.conf'
+dhcpd_conf_file: str = 'dhcpd.conf'
 """
 | Path to dhcpd.conf (Static Leases)
 | Default: /var/dhcpd/etc/dhcpd.conf

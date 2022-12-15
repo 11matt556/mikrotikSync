@@ -1,5 +1,6 @@
 from __future__ import annotations  # for Python 3.7-3.9
 from serial import Serial
+from serial import SerialException
 from datetime import timedelta
 
 import time
@@ -68,8 +69,8 @@ class MikrotikDNSRecord(DNSRecord):
 
 
 class MikrotikDevice:
-    _serial_port: Serial
-    _logged_in: bool
+    _serial_port: Serial = None
+    _logged_in: bool = False
 
     def get_static_dns_records(self) -> list[MikrotikDNSRecord]:
         print("RouterOS: Importing Reserved DNS Records")
@@ -338,7 +339,18 @@ class MikrotikDevice:
         return ret
 
     def connect(self, tty_path: str, baudrate: int, username: str, password: str):
-        self._serial_port = Serial(tty_path, baudrate=baudrate, parity="E", stopbits=1, bytesize=8, timeout=18)
+        try:
+            self._serial_port = Serial(tty_path,
+                                       baudrate=baudrate,
+                                       parity="E",
+                                       stopbits=1,
+                                       bytesize=8,
+                                       timeout=18,
+                                       exclusive=True)
+        except SerialException or ValueError as e:
+            print(e)
+            return False
+
         self._login(username, password)
         return self._logged_in
 
@@ -346,8 +358,9 @@ class MikrotikDevice:
         if self._logged_in:
             self._logout()
 
-        if self._serial_port.is_open:
-            self._serial_port.close()
+        if self._serial_port:
+            if self._serial_port.is_open:
+                self._serial_port.close()
 
     def _login(self, username: str, password: str) -> bool | str:
         """

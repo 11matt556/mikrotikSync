@@ -21,7 +21,11 @@ class PFSenseDevice:
         Get reserved/preconfigured DNS records, excluding the record for pfsense itself and mk_sw3.lan
         """
         static_dns_records = []
-        file_dir = config.host_entries_file if config.host_entries_file else file_dir = "/var/unbound/host_entries.conf"
+        if config.host_entries_file:
+            file_dir = config.host_entries_file
+        else:
+            file_dir = "/var/unbound/host_entries.conf"
+
         with open(file_dir, 'r') as reader:
             file = reader.read()
             lines = iter(file.split("\n"))
@@ -49,7 +53,11 @@ class PFSenseDevice:
         Get the DHCP leases assigned from the DHCP pool. This does not include preconfigured / reserved leases.
         :return: List of PfsenseDHCPLease dict
         """
-        file_path = config.dhcp_leases_file if config.dhcp_leases_file else file_path = "/var/dhcpd/var/db/dhcpd.leases"
+        if config.dhcp_leases_file:
+            file_path = config.dhcp_leases_file
+        else:
+            file_path = "/var/dhcpd/var/db/dhcpd.leases"
+
         leases: list[DHCPLease] = []
         domain_name = PFSenseDevice.get_domain_name()
 
@@ -99,7 +107,10 @@ class PFSenseDevice:
         :return:
         """
         # /var/dhcpd/etc/dhcpd.conf
-        file_path = config.dhcpd_conf_file if config.dhcpd_conf_file else file_path = "/var/dhcpd/etc/dhcpd.conf"
+        if config.dhcpd_conf_file:
+            file_path = config.dhcpd_conf_file
+        else:
+            file_path = "/var/dhcpd/etc/dhcpd.conf"
         leases: list[DHCPLease] = []
         with open(file_path, 'r') as reader:
             file = reader.read()
@@ -142,7 +153,11 @@ class PFSenseDevice:
 
     @staticmethod
     def get_domain_name():
-        file_path = config.dhcpd_conf_file if config.dhcpd_conf_file else file_path = "/var/dhcpd/etc/dhcpd.conf"
+        if config.dhcpd_conf_file:
+            file_path = config.dhcpd_conf_file
+        else:
+            file_path = "/var/dhcpd/etc/dhcpd.conf"
+
         with open(file_path, 'r') as reader:
             file = reader.read()
             lines = iter(file.split("\n"))

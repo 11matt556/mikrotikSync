@@ -1,4 +1,7 @@
 from __future__ import annotations  # for Python 3.7-3.9
+
+import datetime
+import os.path
 import sys
 
 import config
@@ -113,12 +116,19 @@ be triggered, resulting in an endless loop.
 def main(action):
     assert action is not None
 
-    # Connect and login to RouterOS
     mikro_device = MikrotikDevice()
-    mikro_device.connect(config.serial_port if config else "/dev/ttyU0",
-                         config.baud_rate if config.baud_rate else 115200,
-                         secrets.routeros_username, secrets.routeros_password)
+    # Connect and login to RouterOS
+    connected = mikro_device.connect(config.serial_port if config.serial_port else "/dev/ttyU0",
+                                     config.baud_rate if config.baud_rate else 115200,
+                                     secrets.routeros_username, secrets.routeros_password)
+    if not connected:
+        print("Serial port or login failure.")
+        return
+
     print("Connected")
+
+    with open('last_login.txt', 'w') as _file:
+        _file.write(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 
     if action == "sync":
         # Get pfsense records
@@ -126,6 +136,7 @@ def main(action):
         pfsense_static_leases = PFSenseDevice.get_reserved_dhcp_leases()
         pfsense_dynamic_leases = PFSenseDevice.get_dynamic_dhcp_leases()
         print("Pfsense records loaded")
+
         # Clear all add pfsense records added to RouterOS
         remove_pfsense_records_from_backup(mikro_device)
 
@@ -164,6 +175,16 @@ def main(action):
 
 
 if __name__ == "__main__":
+    # See how long it has been since the last time the script ran
+    try:
+        with open('last_login.txt', 'r') as file:
+            last_modified = datetime.datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
+            interval_seconds = 30
+            if (datetime.datetime.now() - last_modified) < datetime.timedelta(seconds=interval_seconds):
+                print(f"Wait at least {interval_seconds} seconds between calls")
+    except FileNotFoundError:
+        print("last_login.txt not present. File will be created after the first successful login to RouterOS.")
+
     if "--sync" in sys.argv:
         main("sync")
     elif "--link_up" in sys.argv:
@@ -177,3 +198,5 @@ if __name__ == "__main__":
         print("Indicates to the application that pfsense is ready to resume control.")
         print("In other words, it sets the standby router to the standby configuration")
         print("Script checks for presence of LAN devices before commanding backup router to return to standby config.")
+
+    os.remove("lock")
