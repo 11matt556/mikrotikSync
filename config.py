@@ -1,27 +1,34 @@
 """
 | Configuration file
-| dhcpd_conf_file -> static_ip leases
+| dhcpd_conf_file -> static leases
 | dhcp_leases_file -> dynamic leases
-| host_entries_file -> static_ip dns
+| host_entries_file -> static dns
 """
 
-dhcpd_conf_file = 'dhcpd.conf'  # /var/dhcpd/etc/dhcpd.conf
+dhcpd_conf_file:str = 'dhcpd.conf'
 """
 | Path to dhcpd.conf (Static Leases)
-| pfsense path: /var/dhcpd/etc/dhcpd.conf
+| Default: /var/dhcpd/etc/dhcpd.conf
 """
 
-dhcp_leases_file = 'dhcpd.leases'  # /var/dhcpd/var/db/dhcpd.leases
+dhcp_leases_file: str = 'dhcpd.leases'
 """
 | Path to dhcpd.leases (Dynamic Leases)
-| pfsense path: /var/dhcpd/var/db/dhcpd.leases
+| Default: /var/dhcpd/var/db/dhcpd.leases
 """
 
-host_entries_file = 'host_entries.conf'  # /var/unbound/host_entries.conf
+host_entries_file: str = 'host_entries.conf'
 """
 | Path to host_entries.con (Static DNS / DNS Alias)
-| pfsense path: /var/unbound/host_entries.conf
+| Default: /var/unbound/host_entries.conf
 """
 
-serial_port = "COM3"
-baud_rate = 115200
+serial_port: str = "COM3"
+"""
+Default: /dev/ttyU0
+"""
+
+baud_rate: int = 115200
+"""
+Default: 115200
+"""

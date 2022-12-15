@@ -115,7 +115,9 @@ def main(action):
 
     # Connect and login to RouterOS
     mikro_device = MikrotikDevice()
-    mikro_device.connect(config.serial_port, config.baud_rate, secrets.routeros_username, secrets.routeros_password)
+    mikro_device.connect(config.serial_port if config else "/dev/ttyU0",
+                         config.baud_rate if config.baud_rate else 115200,
+                         secrets.routeros_username, secrets.routeros_password)
     print("Connected")
 
     if action == "sync":
