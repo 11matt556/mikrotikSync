@@ -198,5 +198,3 @@ if __name__ == "__main__":
         print("Indicates to the application that pfsense is ready to resume control.")
         print("In other words, it sets the standby router to the standby configuration")
         print("Script checks for presence of LAN devices before commanding backup router to return to standby config.")
-
-    os.remove("lock")
