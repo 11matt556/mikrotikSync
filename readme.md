@@ -221,22 +221,35 @@ relevant records and enables/disables them according to the value of `global $mo
 ```
 ---
 ### `/system/script/pfDown`
-This script is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically go with a 10s timeout, 30s interval.
+This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically go with a 10s timeout, 30s interval.
 
-**Note**: netwatch does not require the full `/system/script` path. Instead, just use the name of the script. 
 
 ```code
 :global mode
 :set $mode "router"
 :log info [put "Set global to $mode mode!"]/system/script/run setMode
 ```
----
+**Note**: netwatch does not require the full `/system/script` path. Instead, just use the name of the script. 
 
+---
+### `/system/script/toSwitch`
+This script configures the device for Switch mode and is called on boot by `/system/schedule`
+
+```code
+:global mode
+:set $mode "switch"
+:log info [put "Set global to $mode mode!"]
+/system/script/run setMode
+```
+
+**Note**: scheduler does not require the full `/system/script` path. Instead, just use the name of the script. 
+
+---
 ## Limitations
 * Only reserved/static DHCP and DNS records are synced to RouterOS at this time
-* Records are read from pfSense and written to RouterOS. This script does not change any configurations on pfSense.
-* Polling architecture
-* Every ``--sync`` sends all records. No differential / partial update support at this time. 
+* Records are read from pfSense and written to RouterOS. This script cannot sync changes from RouterOS to pfSense.
+* Polling / Cron architecture
+* ``--sync`` sends all records, even if no records have changed. 
 
 ---
 ## Possible Improvements
