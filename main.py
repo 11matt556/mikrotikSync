@@ -1,9 +1,11 @@
 from __future__ import annotations  # for Python 3.7-3.9
 
-import datetime
+from datetime import datetime
+from datetime import timedelta
 import os.path
 import sys
 
+import config_defaults
 import config
 import secrets
 from Mikrotik import MikrotikDHCPLease
@@ -58,7 +60,7 @@ def remove_pfsense_records_from_backup(backup_router: MikrotikDevice):
 
 
 def add_static_pfsense_records_to_backup(pfsense_static_dns, pfsense_static_leases, backup_router):
-    print("Adding pfsense dns records to mikrotik")
+    print("Adding pfsense dns records to mikrotik backup")
     for pf_dns in pfsense_static_dns:
         mk_dns = MikrotikDNSRecord(ip_address=pf_dns['ip_address'],
                                    hostname=pf_dns['hostname'],
@@ -101,7 +103,7 @@ def pretty_print_dict(data_dict: dict):
 """
 Usage Notes / Reminders:
 /etc/devd.conf must be edited to include something like 
-action "/usr/local/bin/python3.8 /pySync/main.py --link_up";
+action "/usr/local/bin/python3.8 /pfSync/main.py --link_up";
 on link up
 
 Since the RouterOS link can briefly go down during reconfiguration back-to-back LINK_UP devd events can
@@ -118,15 +120,13 @@ def main(action):
 
     mikro_device = MikrotikDevice()
     # Connect and login to RouterOS
-    connected = mikro_device.connect(config.serial_port if config.serial_port else "/dev/ttyU0",
-                                     config.baud_rate if config.baud_rate else 115200,
+    connected = mikro_device.connect(config_defaults.serial_port if config_defaults.serial_port else "/dev/ttyU0",
+                                     config_defaults.baud_rate if config_defaults.baud_rate else 115200,
                                      secrets.routeros_username, secrets.routeros_password)
     if not connected:
         print("Serial port or login failure.")
-        return
-
+        return -10
     print("Connected")
-
     with open('last_login.txt', 'w') as _file:
         _file.write(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 
@@ -166,22 +166,23 @@ def main(action):
             print("Pfsense operational. Mikrotik configured for standby mode")
         else:
             print("Unable to locate any expected LAN devices.")
+            return -20
 
     else:
         print("Invalid action")
+        return -30
 
     mikro_device.disconnect()
     print("Disconnected")
 
 
 if __name__ == "__main__":
-    # See how long it has been since the last time the script ran
+    # See how long it has been since the last time the script ran (And logged in to RouterOS)
     try:
         with open('last_login.txt', 'r') as file:
-            last_modified = datetime.datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
-            interval_seconds = 30
-            if (datetime.datetime.now() - last_modified) < datetime.timedelta(seconds=interval_seconds):
-                print(f"Wait at least {interval_seconds} seconds between calls")
+            last_login = datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
+            if (datetime.now() - last_login) < timedelta(seconds=config_defaults.login_interval_seconds):
+                print(f"Wait at least {config_defaults.login_interval_seconds} seconds between calls")
     except FileNotFoundError:
         print("last_login.txt not present. File will be created after the first successful login to RouterOS.")
 

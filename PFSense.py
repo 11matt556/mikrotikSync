@@ -2,7 +2,7 @@ from __future__ import annotations  # for Python 3.7-3.9
 from datetime import datetime
 from datetime import timedelta
 
-import config
+import config_defaults
 
 from Shared import DHCPLease
 from Shared import DNSRecord
@@ -21,8 +21,8 @@ class PFSenseDevice:
         Get reserved/preconfigured DNS records, excluding the record for pfsense itself and mk_sw3.lan
         """
         static_dns_records = []
-        if config.host_entries_file:
-            file_dir = config.host_entries_file
+        if config_defaults.host_entries_file:
+            file_dir = config_defaults.host_entries_file
         else:
             file_dir = "/var/unbound/host_entries.conf"
 
@@ -53,8 +53,8 @@ class PFSenseDevice:
         Get the DHCP leases assigned from the DHCP pool. This does not include preconfigured / reserved leases.
         :return: List of PfsenseDHCPLease dict
         """
-        if config.dhcp_leases_file:
-            file_path = config.dhcp_leases_file
+        if config_defaults.dhcp_leases_file:
+            file_path = config_defaults.dhcp_leases_file
         else:
             file_path = "/var/dhcpd/var/db/dhcpd.leases"
 
@@ -107,8 +107,8 @@ class PFSenseDevice:
         :return:
         """
         # /var/dhcpd/etc/dhcpd.conf
-        if config.dhcpd_conf_file:
-            file_path = config.dhcpd_conf_file
+        if config_defaults.dhcpd_conf_file:
+            file_path = config_defaults.dhcpd_conf_file
         else:
             file_path = "/var/dhcpd/etc/dhcpd.conf"
         leases: list[DHCPLease] = []
@@ -153,8 +153,8 @@ class PFSenseDevice:
 
     @staticmethod
     def get_domain_name():
-        if config.dhcpd_conf_file:
-            file_path = config.dhcpd_conf_file
+        if config_defaults.dhcpd_conf_file:
+            file_path = config_defaults.dhcpd_conf_file
         else:
             file_path = "/var/dhcpd/etc/dhcpd.conf"
 

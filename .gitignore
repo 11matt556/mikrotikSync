@@ -5,3 +5,4 @@ host_entries.conf
 __pycache__/
 *.py[cod]
 last_login.txt
+test_files/*
