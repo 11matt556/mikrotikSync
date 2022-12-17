@@ -6,3 +6,4 @@ __pycache__/
 *.py[cod]
 last_login.txt
 test_files/*
+config.py
