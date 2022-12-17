@@ -4,5 +4,3 @@
 """
 
 import config_defaults
-
-
