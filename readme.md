@@ -4,87 +4,140 @@ This script is one of the main components in my home-bew router-fail-over mechan
 was not viable for my environment since one of the requirements of the fail-over router is multiple PoE+ ports for
 power redundancy.
 
-RS232 is utilized as an out-of-band communication medium for record and state communication between pfSense and RouterOS.
+RS232 is utilized as an out-of-band communication medium for record and state communication 
+between pfSense and RouterOS. When RouterOS detects pfSense is down, it automatically takes over the routing role of pfSense.
+Once pfSense is back online, it will signal RouterOS to return to standby mode. 
 
 As a whole, this script is application specific to my environment and use case. However, modularity and separation of 
 concerns were taken into account. For example, `Mikrotik.py` is essentially a mini Mikrotik serial API / connector, 
 akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector.
 ---
 # Quickstart
+This section and the rest of this documentation assumes pfSync is running on pfSense 2.6.0 unless otherwise stated.
 
-1. Install required packages
-```commandline
-pip3 install -r requirements.txt
-```
-
-2. Copy and rename `secrets_example.py` to `secrets.py`
-```commandline
-cp secrets_example.py secrets.py
-```
-
-3. Update `routeros_username` and `routeros_password` with your RouterOS username and password.
-
-
-4. Run script without arguments to see help text
-```commandline
-python main.py
-Usage: main.py ACTION
-
-ACTION
---sync
-Synchronize pfSense records to the backup RouterOS device
---link_up
-Indicates to script that the network link is back up and sets the RouterOS device into 'switch mode'
-```
-
-5. See `config.py` and `config_defaults.py` for additional options
----
-### Supported Python Versions
-* Supports Python 3.7 and higher.
-  * Testing performed using Python 3.7, 3.8, and 3.11
----
-## pfSense Configuration
-
-### Personal Configuration Preferences
-* `pkg install nano` 
-  * Because I can't be bothered with vim
-* `echo "EDITOR=/usr/bin/nano" >> /etc/profile`
-  * So I don't have to use vim in crontab
-### Recommended Configuration for pfSync Usage
-* Run `pfSync` with the `--link_up` flag when a network interface changes to LINK_UP status
-  * This is accomplished by adding the script to LINK_UP in `/etc/devd.conf`.
+1. Copy and/or rename `secrets_example.py` to `secrets.py`
     ```shell
+    cp secrets_example.py secrets.py
+    ```
+2. Add RouterOS login credentials to `secrets.py`
+
+3. (Recommended) Create a virtualenv for pfSync.
+
+    ```shell
+    python3.8 -m venv ./venv
+    chmod +x venv/bin/activate.csh
+    source venv/bin/activate.csh
+   ```
+
+4. Install python modules
+    ```shell 
+    pip3 install -r requirements.txt
+    ```
+
+5. Run the script
+    ```shell
+    python3.8 main.py
+    ```
+    ```commandline
+    Usage: main.py ACTION
+    
+    ACTION
+    --sync
+    Synchronize pfSense records to the backup RouterOS device
+    --link_up
+    Indicates to script that the network link is back up and sets the RouterOS device into 'switch mode'
+    ```
+
+6. (Optional) See `config.py` and `config_defaults.py` for additional options
+
+---
+### General Environment / Version Information
+* Tested on Python 3.7, 3.8, and 3.11 on Windows 10
+  * Relevant pfSense config files were copied over for the script to access during testing. The script is not intended to be run on Windows in 'production' though.
+* pfSense 2.6.0-RELEASE
+  * Python 3.8
+* RouterOS 7.5
+  * RouterOS Hardware is a RB5009UPr+S+IN
+* FTDI FT232B/R UART for OOB serial link
+---
+
+## pfSense Configuration Details
+pfSense has two jobs:
+1. Periodically sync configuration changes to RouterOS (via `--sync` flag)
+2. Notify RouterOS when it is back online (via `--link_up` flag)
+
+### Preferences
+Install Nano
+```shell
+pkg install nano
+```
+Update csh shell (default) to use Nano in crontab -e.
+```shell
+echo setenv EDITOR nano >> /etc/csh.cshrc
+```
+
+### Notify RouterOS that pfSense is online
+* Run `pfSync --link_up` when a network interface changes to LINK_UP status
+  * This is accomplished by adding pfSync to a LINK_UP trigger in `/etc/devd.conf`
+    ```
     notify 0 {
             match "system"          "IFNET";
             match "type"            "LINK_UP";
             media-type              "ethernet";
-            action "service dhclient quietstart $subsystem";action "/usr/local/bin/python3.8 /path/to/script/main.py --link_up";
+            action "service dhclient quietstart $subsystem";action "/root/pfSync/env/bin/python3.8 /root/pfSync/main.py --link_up";
     };
     ```
-* Run `pfSync` with the `--sync` flag periodically to keep records up to date in RouterOS
+  * `/path/to/python/binary` is likely either:
+    * system: `/usr/local/bin/python3.8`
+    * &nbsp;&nbsp;&nbsp;&nbsp;venv: `/root/pfSync/venv/bin/python3.8`
+### Periodically sync pfSense records to RouterOS
+  * Add a cron job for `pfSync` with the `--sync` flag to keep records up to date in RouterOS
     ```shell
     crontab -e
-    @hourly /usr/local/bin/python3.8 /path/to/script/main.py --sync
     ```
+    ```
+    @hourly /root/pfSync/venv/bin/python3.8 /root/pfSync/main.py --sync
+    ```
+    * This could also be done by monitoring the relevant record files for changes, but this works for my scenario and is easier so... ¯\\\_(ツ)_/¯ 
     
-# RouterOS
+---
+## RouterOS Configuration Details
+
 * RouterOS is managed by having two sets of configurations or 'modes' that it switches between. The normal, 
 standby mode, is referred to as 'switch' mode, while the opposite mode is the 'router' mode.
 * There are several scripts and conventions used to accomplish this.
-#### RouterOS Conventions
-1. This script creates a comment with `'Added by pfsense.'` on every record added or 'managed' by this script.
-   * Trivia: `Added by pfsense` is parsed by this script, but not by anything on RouterOS
-2. Add `'mode:router'` to the comment of any record that should be enabled in 'router mode' and disabled in 'switch mode'.
-3. Add `'mode:switch'` to the comment for likewise behavior, but for 'switch mode'
-   *   `/system/script/setMode` does the heavy lifting for these 'modes'
-4. `global $mode` is used to store the current mode and acts as the 'mode parameter' for `setMode`
+
+
+### RouterOS Conventions
+Desired state/configuration information is primarily stored in the comment strings of records. These comments 
+indicate whether a record is 'managed' by `pfSync` and whether it should be enabled/disabled in router/switch modes.
+
+* All pfSync records include `'Added by pfsense.'` in the comment string of records it has added.
+   * Trivia: `Added by pfsense` is not parsed by any RouterOS script
+* `mode:router` and `mode:switch` is used to indicate records to be enabled in `router mode` and `switch mode` respectively.
+  * Records that do not match the desired mode are explicitly disabled when `setMode` is run. 
+  * For example: All `mode:router` records are disabled by `setMode` when the desired mode is `switch mode`
+* `global $mode` is used to store the desired mode. This must be set to either `router` or `switch` before running `setMode`
+* Port 8 is **always** the 'WAN' port
 
 ---
-## RouterOS Scripting
-### `/system/script/setMode`
-`/system/script/setMode` does the heavy lifting of configuring RouterOS. Its role is to parse the comments on
-relevant records and enable or disable them depending on the comment values and the value of `global $mode`.
-```shell
+
+## RouterOS Scripts
+This section details the scripts that are run on RouterOS to facilitate pfSync.
+
+### /system/script/setMode
+`/system/script/setMode` does the heavy lifting of configuring RouterOS. It parses the comments on
+relevant records and enables/disables them according to the value of `global $mode`.
+
+**Notes:**
+* Changes the VLAN trunking of Ether7 and Ether8. 
+  * In `switch mode` VLAN68 is tagged on Ether7 and Ether8, as VLAN68 is intended to be trunked through to another
+  switch, eventually 'terminating' at pfSense as the WAN. In `router mode` RouterOS takes over as pfSense though, so VLAN68 
+  'terminates' at RouterOS.
+* WAN (VLAN68) interface list disabled in `switch mode` so WAN is not switched to LAN.
+* pfSense MAC address is spoofed by RouterOS to make the transition slightly more seamless for clients.
+
+```code
 # valid options are router and switch
 # get desired mode variable. valid options are 'router' and 'switch'
 :global mode;
@@ -143,20 +196,20 @@ relevant records and enable or disable them depending on the comment values and 
 }
 
 # Configure VLAN68 tagging. 
-# Ether7 should be untagged when in router mode so that the switch connected on Ether7 can pick up the LAN from this router. 
 :if ($mode = "router") do={
+   # Ether7 should be untagged when in router mode so VLAN68 'terminates' here. 
   /interface/bridge/vlan/set untagged="" [find vlan-ids=68]
   /interface/bridge/vlan/set tagged=ether8 [find vlan-ids=68]
-
 } else={ 
   :if ($mode = "switch") do={
-    # Ether7 should be tagged vlan68 when in switch mode so vlan passes through to next switch
+    # Ether7 should be tagged vlan68 when in switch mode so vlan is trunked to next switch
     /interface/bridge/vlan/set untagged="" [find vlan-ids=68]
     /interface/bridge/vlan/set tagged=ether8,ether7 [find vlan-ids=68]
   }
 }
 
-# Disable bridge ports that should not part of bridge (Such as WAN)
+# Disable bridge ports that should not part of bridge (Such as WAN). 
+# /interface/bridge/port is only physical ports, not VLAN.
 /interface/bridge/port/set disabled=$disableRouterStuff [find comment~"mode:router"]
 /interface/bridge/port/set disabled=$disableSwitchStuff [find comment~"mode:switch"]
 
@@ -172,7 +225,7 @@ This script is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I ty
 
 **Note**: netwatch does not require the full `/system/script` path. Instead, just use the name of the script. 
 
-```shell
+```code
 :global mode
 :set $mode "router"
 :log info [put "Set global to $mode mode!"]/system/script/run setMode
@@ -182,8 +235,10 @@ This script is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I ty
 ## Limitations
 * Only reserved/static DHCP and DNS records are synced to RouterOS at this time
 * Records are read from pfSense and written to RouterOS. This script does not change any configurations on pfSense.
+* Polling architecture
+* Every ``--sync`` sends all records. No differential / partial update support at this time. 
 
-
+---
 ## Possible Improvements
 * Remove cron polling and instead have the script only sync when there are changes made to `dhcpd.conf`, 
 `dhcpd.leases`, or `host_entries.conf`
@@ -193,3 +248,4 @@ records I have, but a differential sync could be much faster than the current (v
 * Synchronize dynamic leases and such as well
 * Add more options to the config file
 * Use a 'real' config file format
+* Expand `Mikrorik.py` into a more complete API
