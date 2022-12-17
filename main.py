@@ -2,19 +2,19 @@ from __future__ import annotations  # for Python 3.7-3.9
 
 from datetime import datetime
 from datetime import timedelta
-import os.path
+from os.path import isfile
+
 import sys
+import platform  # For getting the operating system name
+import subprocess  # For executing a shell command
 
 import config_defaults
-import config
+import config  # Pycharm says this is unused but it is actually needed if defaults are being overridden
 import secrets
 from Mikrotik import MikrotikDHCPLease
 from Mikrotik import MikrotikDNSRecord
 from Mikrotik import MikrotikDevice
 from PFSense import PFSenseDevice
-
-import platform  # For getting the operating system name
-import subprocess  # For executing a shell command
 
 
 # Credit to https://stackoverflow.com/questions/2953462/pinging-servers-in-python
@@ -100,23 +100,36 @@ def pretty_print_dict(data_dict: dict):
     print("")
 
 
-"""
-Usage Notes / Reminders:
-/etc/devd.conf must be edited to include something like 
-action "/usr/local/bin/python3.8 /pfSync/main.py --link_up";
-on link up
+def login_interval_throttled():
+    if not isfile('last_login.txt'):
+        print("Info: last_login.txt does not exist.")
+        return False
 
-Since the RouterOS link can briefly go down during reconfiguration back-to-back LINK_UP devd events can
-be triggered, resulting in an endless loop.
-"""
+    with open('last_login.txt', 'r') as file:
+        content = file.read()
+        if not content:
+            print("Info: Ignoring empty last_login.txt")
+            return False
+
+        last_login = datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
+        if (datetime.now() - last_login) < timedelta(seconds=config_defaults.login_interval_seconds):
+            return True
 
 
-# TODO: Fix possible endless loop. Probably by logging when the last runtime was and throttling based on that.
-# TODO: Add some basic sys logging functionality for monitoring.
+# TODO: Add some basic sys logging functionality for error monitoring, emails, etc
 # TODO: Handle diffs between Mikrotik and Pfsense. For now it is simple enough to just remove and recreate.
+# TODO: Remove cron polling and instead have the script only sync when there are changes made to `dhcpd.conf`,
+#  `dhcpd.leases`, or `host_entries.conf`
+# TODO: Synchronize dynamic leases and such as well
+# TODO: Add more options, like serial stuff, to the config file
+# TODO: Use a 'real' config file format
 
 def main(action):
     assert action is not None
+    # See how long it has been since the last time the script ran (And logged in to RouterOS)
+    if login_interval_throttled():
+        print(f"Wait at least {config_defaults.login_interval_seconds} seconds between executions")
+        exit(-10)
 
     mikro_device = MikrotikDevice()
     # Connect and login to RouterOS
@@ -125,7 +138,7 @@ def main(action):
                                      secrets.routeros_username, secrets.routeros_password)
     if not connected:
         print("Serial port or login failure.")
-        return -10
+        exit(-15)
     print("Connected")
     with open('last_login.txt', 'w') as _file:
         _file.write(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
@@ -166,36 +179,26 @@ def main(action):
             print("Pfsense operational. Mikrotik configured for standby mode")
         else:
             print("Unable to locate any expected LAN devices.")
-            return -20
+            exit(-20)
 
     else:
         print("Invalid action")
-        return -30
+        exit(-30)
 
     mikro_device.disconnect()
     print("Disconnected")
 
 
 if __name__ == "__main__":
-    # See how long it has been since the last time the script ran (And logged in to RouterOS)
-    try:
-        with open('last_login.txt', 'r') as file:
-            last_login = datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
-            if (datetime.now() - last_login) < timedelta(seconds=config_defaults.login_interval_seconds):
-                print(f"Wait at least {config_defaults.login_interval_seconds} seconds between calls")
-    except FileNotFoundError:
-        print("last_login.txt not present. File will be created after the first successful login to RouterOS.")
-
     if "--sync" in sys.argv:
         main("sync")
     elif "--link_up" in sys.argv:
         main("link_up")
     else:
         print("Usage: main.py ACTION")
+        print("")
         print("ACTION")
         print("--sync")
-        print("Synchronize pfsense records to the backup routeros device")
+        print("Synchronize pfSense records to the backup RouterOS device")
         print("--link_up")
-        print("Indicates to the application that pfsense is ready to resume control.")
-        print("In other words, it sets the standby router to the standby configuration")
-        print("Script checks for presence of LAN devices before commanding backup router to return to standby config.")
+        print("Indicates to script that the network link is back up and sets the RouterOS device into 'switch mode'")
