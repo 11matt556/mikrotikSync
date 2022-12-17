@@ -107,11 +107,11 @@ def login_interval_throttled():
 
     with open('last_login.txt', 'r') as file:
         content = file.read()
-        if content == "":
+        if not content or content == "" or content == "''":
             print("Info: Ignoring empty last_login.txt")
             return False
 
-        last_login = datetime.strptime(file.read(), "%m/%d/%Y, %H:%M:%S")
+        last_login = datetime.strptime(content, "%m/%d/%Y, %H:%M:%S")
         if (datetime.now() - last_login) < timedelta(seconds=config_defaults.login_interval_seconds):
             return True
 
