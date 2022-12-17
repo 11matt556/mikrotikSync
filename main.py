@@ -9,7 +9,7 @@ import platform  # For getting the operating system name
 import subprocess  # For executing a shell command
 
 import config_defaults
-import config  # Pycharm says this is unused but it is actually needed if defaults are being overridden
+import config  # Pycharm says this is unused, but it is actually needed for overriding defaults
 import secrets
 from Mikrotik import MikrotikDHCPLease
 from Mikrotik import MikrotikDNSRecord
@@ -107,7 +107,7 @@ def login_interval_throttled():
 
     with open('last_login.txt', 'r') as file:
         content = file.read()
-        if not content:
+        if content == "":
             print("Info: Ignoring empty last_login.txt")
             return False
 
@@ -141,7 +141,7 @@ def main(action):
         exit(-15)
     print("Connected")
     with open('last_login.txt', 'w') as _file:
-        _file.write(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+        _file.write(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 
     if action == "sync":
         # Get pfsense records
