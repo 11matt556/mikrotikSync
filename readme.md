@@ -5,15 +5,16 @@ was not viable for my environment since one of the requirements of the fail-over
 power redundancy.
 
 RS232 is utilized as an out-of-band communication medium for record and state communication 
-between pfSense and RouterOS. When RouterOS detects pfSense is down, it automatically takes over the routing role of pfSense.
-Once pfSense is back online, it will signal RouterOS to return to standby mode. 
+between pfSense and RouterOS. When RouterOS detects pfSense is down, it automatically takes over
+the routing role of pfSense. Once pfSense is back online, it will signal RouterOS to return 
+to standby mode. 
 
-As a whole, this script is application specific to my environment and use case. However, modularity and separation of 
-concerns were taken into account. For example, `Mikrotik.py` is essentially a mini Mikrotik serial API / connector, 
+As a whole, this script is application specific to my environment and use case. However, I attempted to take 
+modularity into account. For example, `Mikrotik.py` is essentially a mini Mikrotik serial API / connector, 
 akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector.
 ---
 # Quickstart
-This section and the rest of this documentation assumes pfSync is running on pfSense 2.6.0 unless otherwise stated.
+This section and the rest of this documentation assumes mikrotikSync is running on pfSense 2.6.0 unless otherwise stated.
 
 1. Copy and/or rename `secrets_example.py` to `secrets.py`
     ```shell
@@ -21,7 +22,8 @@ This section and the rest of this documentation assumes pfSync is running on pfS
     ```
 2. Add RouterOS login credentials to `secrets.py`
 
-3. (Recommended) Create a virtualenv for pfSync.
+
+3. (Recommended) Create a virtualenv for mikrotikSync.
 
     ```shell
     python3.8 -m venv ./venv
@@ -48,7 +50,16 @@ This section and the rest of this documentation assumes pfSync is running on pfS
     Indicates to script that the network link is back up and sets the RouterOS device into 'switch mode'
     ```
 
-6. (Optional) See `config.py` and `config_defaults.py` for additional options
+6. Configure `/etc/devd.conf` 
+   * See 'Configure devd.conf' 
+
+
+7. Configure cronjob 
+   * See 'Configure Cron'
+
+
+8. (Optional) See `config.py` and `config_defaults.py` for additional options
+
 
 ---
 ### General Environment / Version Information
@@ -75,26 +86,30 @@ Update csh shell (default) to use Nano in crontab -e.
 ```shell
 echo setenv EDITOR nano >> /etc/csh.cshrc
 ```
-### Periodically sync pfSense records to RouterOS
-  * Add a cron job for `pfSyn --syncc` to keep records up to date in RouterOS
+### Configure Cron
+  * Add a cron job for `mikrotikSync --sync` to keep records up to date in RouterOS
     ```shell
     crontab -e
     ```
     ```
-    @hourly /root/pfSync/venv/bin/python3.8 /root/pfSync/main.py --sync
+    @hourly /root/mikrotikSync/venv/bin/python3.8 /root/mikrotikSync/main.py --sync
     ```
     * This could also be done by monitoring the relevant files for changes, but this works for my scenario and is easier so... ¯\\\_(ツ)_/¯ 
     
 
-### Notify RouterOS that pfSense is online
-* Edit `/etc/devd.conf` to run `pfSync --link_up` when a network interface changes to LINK_UP
+### Configure devd.conf
+* Edit `/etc/devd.conf` to run `mikrotikSync --link_up` when a network interface changes to LINK_UP
     ```
     notify 0 {
             match "system"          "IFNET";
             match "type"            "LINK_UP";
             media-type              "ethernet";
-            action "service dhclient quietstart $subsystem";action "/root/pfSync/env/bin/python3.8 /root/pfSync/main.py --link_up";
+            action "service dhclient quietstart $subsystem";action "/root/mikrotikSync/env/bin/python3.8 /root/mikrotikSync/main.py --link_up";
     };
+    ```
+* Restart devd service
+    ```shell
+    service devd restart
     ```
 ---
 ## RouterOS Configuration Details
@@ -106,9 +121,9 @@ standby mode, is referred to as 'switch' mode, while the opposite mode is the 'r
 
 ### RouterOS Conventions
 Desired state/configuration information is primarily stored in the comment strings of records. These comments 
-indicate whether a record is 'managed' by `pfSync` and whether it should be enabled/disabled in router/switch modes.
+indicate whether a record is 'managed' by `mikrotikSync` and whether it should be enabled/disabled in router/switch modes.
 
-* All pfSync records include `'Added by pfsense.'` in the comment string of records it has added.
+* All mikrotikSync records include `'Added by pfsense.'` in the comment string of records it has added.
    * Trivia: `Added by pfsense` is not parsed by any RouterOS script
 * `mode:router` and `mode:switch` is used to indicate records to be enabled in `router mode` and `switch mode` respectively.
   * Records that do not match the desired mode are explicitly disabled when `setMode` is run. 
@@ -119,7 +134,7 @@ indicate whether a record is 'managed' by `pfSync` and whether it should be enab
 ---
 
 ## RouterOS Scripts
-This section details the scripts that are run on RouterOS to facilitate pfSync.
+This section details the scripts that are run on RouterOS to facilitate mikrotikSync.
 
 ### /system/script/setMode
 `/system/script/setMode` does the heavy lifting of configuring RouterOS. It parses the comments on
