@@ -75,10 +75,19 @@ Update csh shell (default) to use Nano in crontab -e.
 ```shell
 echo setenv EDITOR nano >> /etc/csh.cshrc
 ```
+### Periodically sync pfSense records to RouterOS
+  * Add a cron job for `pfSyn --syncc` to keep records up to date in RouterOS
+    ```shell
+    crontab -e
+    ```
+    ```
+    @hourly /root/pfSync/venv/bin/python3.8 /root/pfSync/main.py --sync
+    ```
+    * This could also be done by monitoring the relevant files for changes, but this works for my scenario and is easier so... ¯\\\_(ツ)_/¯ 
+    
 
 ### Notify RouterOS that pfSense is online
-* Run `pfSync --link_up` when a network interface changes to LINK_UP status
-  * This is accomplished by adding pfSync to a LINK_UP trigger in `/etc/devd.conf`
+* Edit `/etc/devd.conf` to run `pfSync --link_up` when a network interface changes to LINK_UP
     ```
     notify 0 {
             match "system"          "IFNET";
@@ -87,19 +96,6 @@ echo setenv EDITOR nano >> /etc/csh.cshrc
             action "service dhclient quietstart $subsystem";action "/root/pfSync/env/bin/python3.8 /root/pfSync/main.py --link_up";
     };
     ```
-  * `/path/to/python/binary` is likely either:
-    * system: `/usr/local/bin/python3.8`
-    * &nbsp;&nbsp;&nbsp;&nbsp;venv: `/root/pfSync/venv/bin/python3.8`
-### Periodically sync pfSense records to RouterOS
-  * Add a cron job for `pfSync` with the `--sync` flag to keep records up to date in RouterOS
-    ```shell
-    crontab -e
-    ```
-    ```
-    @hourly /root/pfSync/venv/bin/python3.8 /root/pfSync/main.py --sync
-    ```
-    * This could also be done by monitoring the relevant record files for changes, but this works for my scenario and is easier so... ¯\\\_(ツ)_/¯ 
-    
 ---
 ## RouterOS Configuration Details
 
@@ -221,15 +217,14 @@ relevant records and enables/disables them according to the value of `global $mo
 ```
 ---
 ### `/system/script/pfDown`
-This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically go with a 10s timeout, 30s interval.
-
+This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically use a 10s timeout, 30s interval.
 
 ```code
 :global mode
 :set $mode "router"
 :log info [put "Set global to $mode mode!"]/system/script/run setMode
 ```
-**Note**: netwatch does not require the full `/system/script` path. Instead, just use the name of the script. 
+**Note**: `netwatch` does not require the full `/system/script` path. Instead, just use the name of the script. 
 
 ---
 ### `/system/script/toSwitch`
@@ -242,7 +237,7 @@ This script configures the device for Switch mode and is called on boot by `/sys
 /system/script/run setMode
 ```
 
-**Note**: scheduler does not require the full `/system/script` path. Instead, just use the name of the script. 
+**Note**: `schedule` does not require the full `/system/script` path. Instead, just use the name of the script. 
 
 ---
 ## Limitations
