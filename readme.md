@@ -2,7 +2,7 @@
 
 This script is one of the main components in my home-bew router-fail-over mechanism. pfSense CARP / HA 
 was not viable for my environment since one of the requirements of the fail-over router is multiple PoE+ ports for
-power redundancy.
+power redundancy. (And because this seemed like a more interesting project)
 
 RS232 is utilized as an out-of-band communication medium for record and state communication 
 between pfSense and RouterOS. When RouterOS detects pfSense is down, it automatically takes over
@@ -10,8 +10,9 @@ the routing role of pfSense. Once pfSense is back online, it will signal RouterO
 to standby mode. 
 
 As a whole, this script is application specific to my environment and use case. However, I attempted to take 
-modularity into account. For example, `Mikrotik.py` is essentially a mini Mikrotik serial API / connector, 
-akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector.
+modularity into account. For example, `Mikrotik.py` is essentially a mostly standalone Mikrotik serial API / connector, 
+akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector, just with a smaller
+implementation scope.
 ---
 # Quickstart
 This section and the rest of this documentation assumes mikrotikSync is running on pfSense 2.6.0 unless otherwise stated.
