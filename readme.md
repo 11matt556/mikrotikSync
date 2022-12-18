@@ -171,31 +171,40 @@ relevant records and enables/disables them according to the value of `global $mo
     :error "Invalid mode selected. Exiting."
   }
 }
+:log info [put "Configured LED"];
 
 # TODO: Sync pfsense upstream dns setting?
-# Set whether it responds to DNS
+# Set whether we respond to DNS
 /ip/dns/set allow-remote-requests=$disableSwitchStuff 
+:log info [put "Configured DNS server"];
 
 # Enable or disable static DNS entries
 /ip/dns/static/set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/dns/static/set disabled=$disableSwitchStuff [find comment~"mode:switch"]
+:log info [put "Configured Static DNS Entries"];
 
 # Set DHCP server
 /ip/dhcp-server/ set disabled=$disableRouterStuff [find comment~"mode:router"]
+:log info [put "Configured DHCP Server"];
 
 # Set local IP address
 /ip/address set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/address set disabled=$disableSwitchStuff [find comment~"mode:switch"]
+:log info [put "Configured Local IP"];
 
 # Configure interface lists
 /interface/list/member set disabled=$disableSwitchStuff [find comment~"mode:switch"]
 /interface/list/member set disabled=$disableRouterStuff [find comment~"mode:router"]
+:log info [put "Configured Interface Lists"];
+
 
 # Set firewall rules
 /ip/firewall/filter set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/firewall/nat set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/firewall/mangle set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/firewall/raw set disabled=$disableRouterStuff [find comment~"mode:router"]
+:log info [put "Configured Firewall"];
+
 
 # Configure MAC spoofing
 :if ($mode = "router") do={
@@ -205,10 +214,12 @@ relevant records and enables/disables them according to the value of `global $mo
     /interface/ethernet/set ether8 mac-address=18:FD:74:78:5D:DB
   }
 }
+:log info [put "Configured MAC Spoofing"];
+
 
 # Configure VLAN68 tagging. 
 :if ($mode = "router") do={
-   # Ether7 should be untagged when in router mode so VLAN68 'terminates' here. 
+  # Ether7 should be untagged when in router mode so VLAN68 'terminates' here. 
   /interface/bridge/vlan/set untagged="" [find vlan-ids=68]
   /interface/bridge/vlan/set tagged=ether8 [find vlan-ids=68]
 } else={ 
@@ -218,17 +229,22 @@ relevant records and enables/disables them according to the value of `global $mo
     /interface/bridge/vlan/set tagged=ether8,ether7 [find vlan-ids=68]
   }
 }
+:log info [put "Configured VLAN68"];
+
 
 # Disable bridge ports that should not part of bridge (Such as WAN). 
 # /interface/bridge/port is only physical ports, not VLAN.
 /interface/bridge/port/set disabled=$disableRouterStuff [find comment~"mode:router"]
 /interface/bridge/port/set disabled=$disableSwitchStuff [find comment~"mode:switch"]
+:log info [put "Configured Bridge ports"];
+
 
 # Set DHCP Client
 /ip/dhcp-client/ set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/dhcp-client/ set disabled=$disableSwitchStuff [find comment~"mode:switch"]
+:log info [put "Configured DHCP Client"];
 
-:log info [put "Done reconfiguring!"]
+:log info [put "Done configuring!"]
 ```
 ---
 ### `/system/script/pfDown`

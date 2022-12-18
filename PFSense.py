@@ -19,6 +19,7 @@ class PFSenseDevice:
     def get_reserved_dns_records() -> list[DNSRecord]:
         """
         Get reserved/preconfigured DNS records, excluding the record for pfsense itself and mk_sw3.lan
+        :returns: List of Unique DNSRecord dicts
         """
         static_dns_records = []
         if config_defaults.host_entries_file:
@@ -43,15 +44,15 @@ class PFSenseDevice:
                                              'ip_address': data[3],
                                              'record_type': data[2],
                                              }
-                        static_dns_records.append(static_dns_record)
-
+                        if static_dns_record not in static_dns_records:
+                            static_dns_records.append(static_dns_record)
         return static_dns_records
 
     @staticmethod
     def get_dynamic_dhcp_leases() -> list[DHCPLease]:
         """
         Get the DHCP leases assigned from the DHCP pool. This does not include preconfigured / reserved leases.
-        :return: List of PfsenseDHCPLease dict
+        :return: List of Unique DHCPLease dict
         """
         if config_defaults.dhcp_leases_file:
             file_path = config_defaults.dhcp_leases_file
@@ -91,20 +92,23 @@ class PFSenseDevice:
                         if "client-hostname" in line:
                             hostname = line.replace(";", "").split(" ")[-1].replace("\"", "") + domain_name
 
-                    leases.append(DHCPLease(
+                    lease = DHCPLease(
                         mac_address=mac_address,
                         ip_address=ip_address,
                         hostname=hostname,
                         lease_duration=lease_end - lease_start
-                    ))
+                    )
+                    if lease not in leases:
+                        leases.append(lease)
+
             return leases
 
     @staticmethod
     def get_reserved_dhcp_leases() -> list[DHCPLease]:
         """
         Get reserved DHCP records. This includes records that have a reserved DHCP assigned hostname, even if no IP
-        is reserved by the reserved DHCP record. Reserved lease config does not have a start or end date.
-        :return:
+        is reserved by the reserved DHCP record.
+        :return: List of Unique DHCPLease dicts
         """
         # /var/dhcpd/etc/dhcpd.conf
         if config_defaults.dhcpd_conf_file:
@@ -143,12 +147,15 @@ class PFSenseDevice:
                                 hostname = line.replace(";", "").split(" ")[-1].replace("\"", "") + domain_name
                                 continue
 
-                        leases.append(DHCPLease(
+                        lease = DHCPLease(
                             mac_address=mac_address,
                             ip_address=ip_address,
                             hostname=hostname,
                             lease_duration=timedelta(seconds=default_lease_seconds)
-                        ))
+                        )
+                        if lease not in leases:
+                            leases.append(lease)
+
         return leases
 
     @staticmethod

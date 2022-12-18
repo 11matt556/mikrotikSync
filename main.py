@@ -56,12 +56,13 @@ def remove_pfsense_records_from_backup(backup_router: MikrotikDevice):
     print("Removing pfsense dns records from mikrotik")
     backup_router.remove_static_dns_with_comment_containing("Added by pfsense")
     print("Removing pfsense dhcp leases from mikrotik")
-    backup_router.remove_static_leases_with_comment_containing("Added by pfsense")
+    backup_router.remove_reserved_leases_with_comment_containing("Added by pfsense")
 
 
 def add_static_pfsense_records_to_backup(pfsense_static_dns, pfsense_static_leases, backup_router):
     print("Adding pfsense dns records to mikrotik backup")
     for pf_dns in pfsense_static_dns:
+
         mk_dns = MikrotikDNSRecord(ip_address=pf_dns['ip_address'],
                                    hostname=pf_dns['hostname'],
                                    record_type=pf_dns['record_type'],

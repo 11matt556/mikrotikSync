@@ -73,6 +73,10 @@ class MikrotikDevice:
     _logged_in: bool = False
 
     def get_static_dns_records(self) -> list[MikrotikDNSRecord]:
+        """
+
+        :return: List of Unique MikrotikDNSRecord dicts
+        """
         print("RouterOS: Importing Reserved DNS Records")
         reserved_dns_records: list[MikrotikDNSRecord] = []
         start_index = 0
@@ -118,11 +122,14 @@ class MikrotikDevice:
             except KeyError:
                 comment = ""
 
-            reserved_dns_records.append(MikrotikDNSRecord(ip_address=ip_address,
-                                                          hostname=hostname,
-                                                          record_type=record_type,
-                                                          disabled=disabled,
-                                                          comment=comment))
+            reserved_dns_record = MikrotikDNSRecord(ip_address=ip_address,
+                                                    hostname=hostname,
+                                                    record_type=record_type,
+                                                    disabled=disabled,
+                                                    comment=comment)
+            if reserved_dns_record not in reserved_dns_records:
+                reserved_dns_records.append(reserved_dns_record)
+
         return reserved_dns_records
 
     def write_static_dns_record(self, record: MikrotikDNSRecord):
@@ -170,8 +177,7 @@ class MikrotikDevice:
     def get_reserved_dhcp_leases(self) -> list[MikrotikDHCPLease]:
         """
         Get all 'manually' added DHCP leases. I.E, Get leases not predefined or preconfigured.
-        :returns: Dictionary of MikrotikDHCP.DHCPLease keyed on MAC address
-        :rtype: dict[str, MikrotikDHCP.DHCPLease]
+        :returns: List of Unique MikrotikDHCPLease dict
         """
         print("Importing RouterOS DHCP Leases")
 
@@ -243,12 +249,15 @@ class MikrotikDevice:
                 # If not set, the default is being used. 0 duration indicates default. (10 minutes for ipv4 OOB)
                 lease_duration = timedelta(seconds=0)
 
-            reserved_dhcp_leases.append(MikrotikDHCPLease(mac_address=mac_address,
-                                                          hostname=hostname,
-                                                          ip_address=ip_address,
-                                                          lease_duration=lease_duration,
-                                                          disabled=disabled,
-                                                          comment=comment))
+            reserved_dhcp_lease = MikrotikDHCPLease(mac_address=mac_address,
+                                                    hostname=hostname,
+                                                    ip_address=ip_address,
+                                                    lease_duration=lease_duration,
+                                                    disabled=disabled,
+                                                    comment=comment)
+            if reserved_dhcp_lease not in reserved_dhcp_leases:
+                reserved_dhcp_leases.append(reserved_dhcp_lease)
+
         return reserved_dhcp_leases
 
     # TODO: Create exception cases for potential failures
@@ -288,7 +297,7 @@ class MikrotikDevice:
         self.send_command(command)
         return True
 
-    def remove_static_leases_with_comment_containing(self, message: str):
+    def remove_reserved_leases_with_comment_containing(self, message: str):
         command = f"/ip/dhcp-server/lease/remove [find comment~\"{message}\"]"
         self.send_command(command)
 
