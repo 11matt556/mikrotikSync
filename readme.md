@@ -15,7 +15,6 @@ modularity into account. For example, `Mikrotik.py` is essentially a mostly stan
 akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector, just with a smaller
 implementation scope.
 
----
 # Quickstart
 This section and the rest of this documentation assumes mikrotikSync is running on pfSense 2.6.0 unless otherwise stated.
 
@@ -64,8 +63,7 @@ This section and the rest of this documentation assumes mikrotikSync is running 
 8. (Optional) See `config.py` and `config_defaults.py` for additional options
 
 
----
-### General Environment / Version Information
+# General Environment / Version Information
 * Tested on Python 3.7, 3.8, and 3.11 on Windows 10
   * Relevant pfSense config files were copied over for the script to access during testing. The script is not intended to be run on Windows in 'production' though.
 * pfSense 2.6.0-RELEASE
@@ -73,14 +71,13 @@ This section and the rest of this documentation assumes mikrotikSync is running 
 * RouterOS 7.5
   * RouterOS Hardware is a RB5009UPr+S+IN
 * FTDI FT232B/R UART for OOB serial link
----
 
-## pfSense Configuration Details
+# pfSense Configuration Details
 pfSense has two jobs:
 1. Periodically sync configuration changes to RouterOS (via `--sync` flag)
 2. Notify RouterOS when it is back online (via `--link_up` flag)
 
-### Preferences
+## Personal Preference / Optional
 Install Nano
 ```shell
 pkg install nano
@@ -96,7 +93,7 @@ Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator a
 |    4    |   15  |        0       |    1   |        4       |         1        |
 * With the defaults, pfSense waits on Configuring WAN for several minutes as RouterOS hogs the WAN address. There isn't an obvious way to fix the root cause (I.E tell RouterOS to release the IP) since neither cron nor devd LINK_UP have triggered. So workaround just has pfSense give up on WAN DHCP quickly and make more frequent retries.
 
-### Configure Cron
+## Configure Cron
   * Add a cron job for `mikrotikSync --sync` to keep records up to date in RouterOS
     ```shell
     crontab -e
@@ -111,7 +108,7 @@ Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator a
     @reboot /root/mikrotikSync/venv/bin/python3.8 /root/mikrotikSync/main.py --link_up
     ```
 
-### Configure devd.conf
+## Configure devd.conf
 * Edit `/etc/devd.conf` to run `mikrotikSync --link_up` when a network interface changes to LINK_UP
     ```
     notify 0 {
@@ -125,17 +122,17 @@ Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator a
     ```shell
     service devd restart
     ```
----
-## RouterOS Configuration Details
+
+# RouterOS Configuration Details
 
 * RouterOS is managed by having two sets of configurations or 'modes' that it switches between. The normal, 
 standby mode, is referred to as 'switch' mode, while the opposite mode is the 'router' mode.
 * There are several scripts and conventions used to accomplish this.
 
 
-### RouterOS Conventions
-Desired state/configuration information is primarily stored in the comment strings of records. These comments 
-indicate whether a record is 'managed' by `mikrotikSync` and whether it should be enabled/disabled in router/switch modes.
+## RouterOS Conventions
+Desired state/configuration information is stored in the comment strings of records. These comments 
+indicate whether a record is 'managed' by `mikrotikSync` and whether the record should be enabled/disabled in router/switch modes.
 
 * All mikrotikSync records include `'Added by pfsense.'` in the comment string of records it has added.
    * Trivia: `Added by pfsense` is not parsed by any RouterOS script
@@ -145,22 +142,21 @@ indicate whether a record is 'managed' by `mikrotikSync` and whether it should b
 * `global $mode` is used to store the desired mode. This must be set to either `router` or `switch` before running `setMode`
 * Port 8 is **always** the 'WAN' port
 
----
 
 ## RouterOS Scripts
 This section details the scripts that are run on RouterOS to facilitate mikrotikSync.
 
 ### /system/script/setMode
 `/system/script/setMode` does the heavy lifting of configuring RouterOS. It parses the comments on
-relevant records and enables/disables them according to the value of `global $mode`.
+relevant records and enables/disables the record according to the value of `global $mode`
 
-**Notes:**
+Other Changes:
 * Changes the VLAN trunking of Ether7 and Ether8. 
-  * In `switch mode` VLAN68 is tagged on Ether7 and Ether8, as VLAN68 is intended to be trunked through to another
-  switch, eventually 'terminating' at pfSense as the WAN. In `router mode` RouterOS takes over as pfSense though, so VLAN68 
+  * In `switch mode` VLAN68 is tagged on Ether7 and Ether8, as VLAN68 is normally to be trunked through to another
+  switch, 'terminating' at pfSense as the WAN. In `router mode` RouterOS takes over as pfSense, so VLAN68 instead
   'terminates' at RouterOS.
 * WAN (VLAN68) interface list disabled in `switch mode` so WAN is not switched to LAN.
-* pfSense MAC address is spoofed by RouterOS to make the transition slightly more seamless for clients.
+* pfSense MAC address is spoofed by RouterOS to make the transition slightly better and avoid needless public IP changes.
 
 ```code
 # valid options are router and switch
@@ -261,7 +257,7 @@ relevant records and enables/disables them according to the value of `global $mo
 :log info [put "Done configuring!"]
 ```
 ---
-### `/system/script/pfDown`
+### /system/script/pfDown
 This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically use a 10s timeout, 5s interval.
 
 ```code
@@ -272,7 +268,7 @@ This script configures the device for `router mode`. It is called by `/tools/net
 **Note**: `netwatch` does not require the full `/system/script` path. Instead, just use the name of the script. 
 
 ---
-### `/system/script/toSwitch`
+### /system/script/toSwitch
 This script configures the device for Switch mode and is called on boot by `/system/schedule`
 
 ```code
@@ -284,14 +280,14 @@ This script configures the device for Switch mode and is called on boot by `/sys
 
 **Note**: `schedule` does not require the full `/system/script` path. Instead, just use the name of the script. 
 
----
+
 ## Limitations
 * Only reserved/static DHCP and DNS records are synced to RouterOS at this time
 * Records are read from pfSense and written to RouterOS. This script cannot sync changes from RouterOS to pfSense.
 * Polling / Cron architecture
 * ``--sync`` sends all records, even if no records have changed. 
 
----
+
 ## Possible Improvements
 * Keep the WAN address from pfsense cached in RouterOS Address List for faster recovery.
 * Remove cron polling and instead have the script only sync when there are changes made to `dhcpd.conf`, 
