@@ -89,6 +89,13 @@ Update csh shell (default) to use Nano in crontab -e.
 ```shell
 echo setenv EDITOR nano >> /etc/csh.cshrc
 ```
+
+Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator and enter more aggressive dhclient settings. The settings below seem to be working OK. 
+| Timeout | Retry | Select timeout | Reboot | Backoff cutoff | Initial Interval |
+|:-------:|:-----:|:--------------:|:------:|:--------------:|:----------------:|
+|    4    |   15  |        0       |    1   |        4       |         1        |
+* With the defaults, pfSense waits on Configuring WAN for several minutes as RouterOS hogs the WAN address. There isn't an obvious way to fix the root cause (I.E tell RouterOS to release the IP) since neither cron nor devd LINK_UP have triggered. So workaround just has pfSense give up on WAN DHCP quickly and make more frequent retries.
+
 ### Configure Cron
   * Add a cron job for `mikrotikSync --sync` to keep records up to date in RouterOS
     ```shell
@@ -99,6 +106,10 @@ echo setenv EDITOR nano >> /etc/csh.cshrc
     ```
     * This could also be done by monitoring the relevant files for changes, but this works for my scenario and is easier so... ¯\\\_(ツ)_/¯ 
     
+  * Add a cron job to run `mikrotikSync --link_up` on boot, since LINK_UP from devd may trigger too early during boot, but cron runs fairly late.
+    ```
+    @reboot /root/mikrotikSync/venv/bin/python3.8 /root/mikrotikSync/main.py --link_up
+    ```
 
 ### Configure devd.conf
 * Edit `/etc/devd.conf` to run `mikrotikSync --link_up` when a network interface changes to LINK_UP
@@ -251,7 +262,7 @@ relevant records and enables/disables them according to the value of `global $mo
 ```
 ---
 ### `/system/script/pfDown`
-This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically use a 10s timeout, 30s interval.
+This script configures the device for `router mode`. It is called by `/tools/netwatch` when pfsense (10.0.0.1) is down. I typically use a 10s timeout, 5s interval.
 
 ```code
 :global mode
