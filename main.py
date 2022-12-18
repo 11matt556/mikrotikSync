@@ -44,7 +44,7 @@ def set_backup_router_to_standby(backup_router: MikrotikDevice):
 
     if 'switch' in res.splitlines():
         res = backup_router.send_command("/system/script/run setMode")
-        if "Setting configuration to switch mode!" in res and "Done reconfiguring!" in res:
+        if "Setting configuration to switch mode!" in res and "Done configuring!" in res:
             res = backup_router.send_command(":put [/interface/ethernet/get ether8 mac-address]")
             if "18:FD:74:78:5D:DB" in res:
                 in_standby_config = True
