@@ -34,7 +34,7 @@ baud_rate: int = 115200
 Default: 115200
 """
 
-login_interval_seconds: int = 5
+login_interval_seconds: int = 10
 """
 | How long it has been since the script last logged in to the backup router.
 | The script cannot be ran again if it has not been at least login_interval_seconds since the last login.
