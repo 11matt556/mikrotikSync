@@ -13,6 +13,7 @@ As a whole, this script is application specific to my environment and use case. 
 modularity into account. For example, `Mikrotik.py` is essentially a mostly standalone Mikrotik serial API / connector, 
 akin to (and somewhat inspired by) https://github.com/d4vidcn/routeros_ssh_connector, just with a smaller
 implementation scope.
+
 ---
 # Quickstart
 This section and the rest of this documentation assumes mikrotikSync is running on pfSense 2.6.0 unless otherwise stated.
