@@ -1,8 +1,9 @@
 # Overview
 
-This script is one of the main components in my home-bew router-fail-over mechanism. pfSense CARP / HA 
-was not viable for my environment since one of the requirements of the fail-over router is multiple PoE+ ports for
-power redundancy. (And because this seemed like a more interesting project)
+This script is one of the components of my home-bew router-fail-over mechanism. The other components are
+detailed further down in this readme. I created this mainly because I needed the backup router to have several
+PoE+ ports for redundancy and this would be expendive to achieve in a pfsense box, so pfSync was not viable. 
+(And because this seemed like a interesting project)
 
 RS232 is utilized as an out-of-band communication medium for record and state communication 
 between pfSense and RouterOS. When RouterOS detects pfSense is down, it automatically takes over
@@ -281,6 +282,7 @@ This script configures the device for Switch mode and is called on boot by `/sys
 
 ---
 ## Possible Improvements
+* Keep the WAN address from pfsense cached in RouterOS Address List for faster recovery.
 * Remove cron polling and instead have the script only sync when there are changes made to `dhcpd.conf`, 
 `dhcpd.leases`, or `host_entries.conf`
 * Add system logging and integrate email alerts for critical errors
@@ -290,3 +292,4 @@ records I have, but a differential sync could be much faster than the current (v
 * Add more options to the config file
 * Use a 'real' config file format
 * Expand `Mikrorik.py` into a more complete API
+
