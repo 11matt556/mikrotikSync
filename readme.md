@@ -1,6 +1,6 @@
 # Overview
 
-This script is one of the components of my home-bew router-fail-over mechanism. The other components are
+This script is one of the components of my home-brew router-fail-over mechanism. The other components are
 detailed further down in this readme. I created this mainly because I needed the backup router to have several
 PoE+ ports for redundancy and this would be expendive to achieve in a pfsense box, so pfSync was not viable. 
 (And because this seemed like a interesting project)
