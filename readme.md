@@ -166,22 +166,21 @@ Other Changes:
 
 :local disableRouterStuff "null";
 :local disableSwitchStuff "null";
+
 # Rename disableRouterStuff to 'routerMode' and, likewise, 'switchMode'? Or maybe just be verbose and say 'disabledInSwitchMode' and 'disabledInRouterMode'?
-# Light up SFP LED in router mode
+# Set mode
 :if ($mode = "router") do={
-  /system/leds/set disabled=no [find leds=sfp-sfpplus1-led]
   :set disableRouterStuff "no"
   :set disableSwitchStuff "yes"
 } else={
   :if ($mode = "switch") do={
-  /system/leds/set disabled=yes [find leds=sfp-sfpplus1-led]
-  :set disableRouterStuff "yes"
-  :set disableSwitchStuff "no"
-  } else={
-    :error "Invalid mode selected. Exiting."
+     :set disableRouterStuff "yes"
+     :set disableSwitchStuff "no"
+   } else={
+      :error "Invalid mode selected. Exiting."
   }
 }
-:log info [put "Configured LED"];
+:log info [put "Configured mode switch"];
 
 # TODO: Sync pfsense upstream dns setting?
 # Set whether we respond to DNS
@@ -194,7 +193,7 @@ Other Changes:
 :log info [put "Configured Static DNS Entries"];
 
 # Set DHCP server
-/ip/dhcp-server/ set disabled=$disableRouterStuff [find comment~"mode:router"]
+/ip/dhcp-server/set disabled=$disableRouterStuff [find comment~"mode:router"]
 :log info [put "Configured DHCP Server"];
 
 # Set local IP address
@@ -228,22 +227,11 @@ Other Changes:
 
 
 # Configure VLAN68 tagging. 
-:if ($mode = "router") do={
-  # Ether7 should be untagged when in router mode so VLAN68 'terminates' here. 
-  /interface/bridge/vlan/set untagged="" [find vlan-ids=68]
-  /interface/bridge/vlan/set tagged=ether8 [find vlan-ids=68]
-} else={ 
-  :if ($mode = "switch") do={
-    # Ether7 should be tagged vlan68 when in switch mode so vlan is trunked to next switch
-    /interface/bridge/vlan/set untagged="" [find vlan-ids=68]
-    /interface/bridge/vlan/set tagged=ether8,ether7 [find vlan-ids=68]
-  }
-}
+/interface/bridge/vlan/set tagged=bridge,ether8,ether7 [find vlan-ids=68]
 :log info [put "Configured VLAN68"];
 
 
-# Disable bridge ports that should not part of bridge (Such as WAN). 
-# /interface/bridge/port is only physical ports, not VLAN.
+# Disable bridge ports (if any are flagged)
 /interface/bridge/port/set disabled=$disableRouterStuff [find comment~"mode:router"]
 /interface/bridge/port/set disabled=$disableSwitchStuff [find comment~"mode:switch"]
 :log info [put "Configured Bridge ports"];
@@ -253,6 +241,16 @@ Other Changes:
 /ip/dhcp-client/ set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/dhcp-client/ set disabled=$disableSwitchStuff [find comment~"mode:switch"]
 :log info [put "Configured DHCP Client"];
+
+# Turn on user LED in router mode
+:if ($mode = "router") do={
+  /system/leds/set disabled=no [find leds=user-led]
+} else={
+  :if ($mode = "switch") do={
+    /system/leds/set disabled=yes [find leds=user-led]
+  }
+}
+:log info [put "Configured LED"]
 
 :log info [put "Done configuring!"]
 ```
