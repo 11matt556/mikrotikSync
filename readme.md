@@ -172,15 +172,24 @@ Other Changes:
 :if ($mode = "router") do={
   :set disableRouterStuff "no"
   :set disableSwitchStuff "yes"
+  :log info [put "Configured mode router"];
 } else={
   :if ($mode = "switch") do={
      :set disableRouterStuff "yes"
      :set disableSwitchStuff "no"
+     :log info [put "Configured mode switch"];
    } else={
       :error "Invalid mode selected. Exiting."
   }
 }
-:log info [put "Configured mode switch"];
+
+# Set firewall rules
+/ip/firewall/filter set disabled=$disableRouterStuff [find comment~"mode:router"]
+/ip/firewall/nat set disabled=$disableRouterStuff [find comment~"mode:router"]
+/ip/firewall/mangle set disabled=$disableRouterStuff [find comment~"mode:router"]
+/ip/firewall/raw set disabled=$disableRouterStuff [find comment~"mode:router"]
+:log info [put "Configured Firewall"];
+
 
 # TODO: Sync pfsense upstream dns setting?
 # Set whether we respond to DNS
@@ -196,6 +205,16 @@ Other Changes:
 /ip/dhcp-server/set disabled=$disableRouterStuff [find comment~"mode:router"]
 :log info [put "Configured DHCP Server"];
 
+# Set DHCP leases
+:if ($mode = "router") do={
+    /ip/dhcp-server/lease enable [find comment~"mode:router"]
+} else={
+  :if ($mode = "switch") do={
+    /ip/dhcp-server/lease disable [find comment~"mode:router"]
+  }
+}
+:log info [put "Configured DHCP Leases"];
+
 # Set local IP address
 /ip/address set disabled=$disableRouterStuff [find comment~"mode:router"]
 /ip/address set disabled=$disableSwitchStuff [find comment~"mode:switch"]
@@ -205,15 +224,6 @@ Other Changes:
 /interface/list/member set disabled=$disableSwitchStuff [find comment~"mode:switch"]
 /interface/list/member set disabled=$disableRouterStuff [find comment~"mode:router"]
 :log info [put "Configured Interface Lists"];
-
-
-# Set firewall rules
-/ip/firewall/filter set disabled=$disableRouterStuff [find comment~"mode:router"]
-/ip/firewall/nat set disabled=$disableRouterStuff [find comment~"mode:router"]
-/ip/firewall/mangle set disabled=$disableRouterStuff [find comment~"mode:router"]
-/ip/firewall/raw set disabled=$disableRouterStuff [find comment~"mode:router"]
-:log info [put "Configured Firewall"];
-
 
 # Configure MAC spoofing
 :if ($mode = "router") do={
