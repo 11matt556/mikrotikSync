@@ -106,7 +106,7 @@ Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator a
   * Add a cron job to run `mikrotikSync --link_up` on boot, since LINK_UP from devd may trigger too early during boot, but cron runs fairly late.
     ```
     @reboot /root/mikrotikSync/venv/bin/python3.8 /root/mikrotikSync/main.py --link_up
-    ```
+    ``` 
 
 ## Configure devd.conf
 * Edit `/etc/devd.conf` to run `mikrotikSync --link_up` when a network interface changes to LINK_UP
@@ -115,7 +115,7 @@ Navigate to Interfaces -> WAN -> Advanced Configuration in the webConfigurator a
             match "system"          "IFNET";
             match "type"            "LINK_UP";
             media-type              "ethernet";
-            action "service dhclient quietstart $subsystem";action "/root/mikrotikSync/env/bin/python3.8 /root/mikrotikSync/main.py --link_up";
+            action "service dhclient quietstart $subsystem";action "/root/mikrotikSync/venv/bin/python3.8 /root/mikrotikSync/main.py --link_up";
     };
     ```
 * Restart devd service
