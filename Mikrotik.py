@@ -266,7 +266,10 @@ class MikrotikDevice:
 
         command += f" mac-address=\"{lease['mac_address']}\""
         command += f" address=\"{lease['ip_address']}\""
-        command += f" client-id=\"{lease['hostname']}\""
+
+        # TODO: Remove hostname from DHCPLease
+        #command += f" client-id=\"{lease['hostname']}\""
+
         command += f" disabled={'yes' if lease['disabled'] else 'no'}"
         command += f" lease-time={int(lease['lease_duration'].total_seconds())}"
         command += f" comment=\"{lease['comment']}\""
